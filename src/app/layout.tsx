@@ -1,8 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import RouteLoader from '@/components/RouteLoader';
 import './globals.css'
-import { TrackActivity } from '@/components/TrackActivity'
 import { ThemeProvider } from '@/context/ThemeContext'
 export default function RootLayout({
   children,
