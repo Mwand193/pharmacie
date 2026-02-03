@@ -136,3 +136,64 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;              /* Chrome, Safari and Opera */
 }
+
+
+
+
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 32, 0;
+  --background-end-rgb: 0, 16, 0;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  font-family: 'cypher', monospace;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Scrollbar style */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #002000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00aa00;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff00;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .terminal-input {
+    font-size: 16px; /* Empêche le zoom sur iOS */
+  }
+  
+  .dos-cursor {
+    width: 6px;
+    height: 14px;
+  }
+}
