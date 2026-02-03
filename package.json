@@ -1,6 +1,6 @@
 {
-  "name": "qr-code-app",
-  "version": "0.1.2",
+  "name": "app-for-l1",
+  "version": "0.8.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
