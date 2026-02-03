@@ -323,8 +323,8 @@ export default function Terminal() {
           <div className="w-3 h-3 rounded-full bg-white/20"></div>
           <div className="w-3 h-3 rounded-full bg-white/10"></div>
         </div>
-        <div className="text-sm font-semibold tracking-wider cypher">TERMINAL MS-DOS</div>
-        <div className="text-xs opacity-60 cypher">Powered By undeplex v0</div>
+        <div className="text- font-semibold tracking-wider cypher">DOS</div>
+        <div className="text-xs opacity-60 cypher">Powered By unde-v0</div>
       </div>
 
       {/* Zone de terminal avec dégradé */}
