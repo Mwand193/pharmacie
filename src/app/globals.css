@@ -156,7 +156,7 @@ body {
     )
     rgb(var(--background-start-rgb));
   font-family: 'cypher', monospace;
-  overflow: hidden;
+
   margin: 0;
   padding: 0;
 }
@@ -168,23 +168,6 @@ body {
   51%, 100% { opacity: 0; }
 }
 
-/* Scrollbar style */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #002000;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #00aa00;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #00ff00;
-}
 
 /* Mobile optimizations */
 @media (max-width: 768px) {

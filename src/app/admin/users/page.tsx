@@ -481,7 +481,7 @@ export default function UsersPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-4 mb-8">
+        <div className="grid md:grid-cols-5 grid-cols-2 gap-4 mb-8">
           <div className="border rounded p-4">
             <div className="text-sm text-gray-600">Total</div>
             <div className="text-2xl font-bold">{stats.total}</div>

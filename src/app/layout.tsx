@@ -9,7 +9,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className='dark:from-gray-900 dark:to-gray-800'>
+      <body className='bg-red-600 overscroll-y-auto dark:to-gray-800'>
        
         <ThemeProvider>
           {children}

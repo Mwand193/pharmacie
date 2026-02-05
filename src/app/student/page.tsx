@@ -398,6 +398,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRightOnRectangleIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
+import { Terminal, TerminalSquare } from 'lucide-react';
+import { FaTerminal } from 'react-icons/fa';
 
 interface Assessment {
   name: string;
@@ -529,11 +532,19 @@ export default function StudentDashboardPage() {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center">
+            <div className="flex items-center ">
               <AcademicCapIcon className="h-6 w-6 text-gray-700 mr-2" />
               <div>
-                <h1 className="text-lg font-medium text-gray-900">Portail Étudiant</h1>
+                <h1 className="text- cypher font-medium text-gray-900">L1</h1>
               </div>
+            </div>
+            <div>
+              <Link href="/terminal" className='flex items-center cypher text-gray-700 font-bold'>
+               
+              
+                <TerminalSquare className='text-gray-600'/>
+                MS-DOS
+              </Link>
             </div>
             <button
               onClick={handleLogout}
@@ -550,6 +561,9 @@ export default function StudentDashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* En-tête étudiant minimaliste */}
         <div className="mb-6">
+          <p className='text-xl font-bold cypher '>
+            SFO
+          </p>
           <h2 className="text-xl font-medium text-gray-900 mb-1">
             {student?.username}
           </h2>
@@ -600,9 +614,7 @@ export default function StudentDashboardPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Travail
-                    </th>
+                   
                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                       Type
                     </th>
@@ -612,9 +624,7 @@ export default function StudentDashboardPage() {
                     <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                       Score
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Statut
-                    </th>
+                   
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -655,43 +665,35 @@ export default function StudentDashboardPage() {
                     
                     return (
                       <tr key={score.id} className="hover:bg-gray-50">
+                       
                         <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900">
-                            {score.assessment_name}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(score.assessment_type)}`}>
+                          <span className={`inline-flex cypher items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(score.assessment_type)}`}>
                             {score.assessment_type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td className="px-4 py-3 text-sm cypher text-gray-600">
                           {score.assessment_date 
                             ? new Date(score.assessment_date).toLocaleDateString('fr-FR')
                             : '-'
                           }
                         </td>
                         <td className="px-4 py-3">
-                          <div className={`inline-flex items-center px-2 py-1 rounded text-sm font-medium ${getScoreColor(score.score, score.max_score)}`}>
+                          <div className={`inline-flex items-center cypher px-2 py-1 rounded text-sm font-medium ${getScoreColor(score.score, score.max_score)}`}>
                             {score.score === null ? (
                               'Non noté'
                             ) : (
                               <>
                                 {score.score}/{score.max_score}
-                                {percentage !== null && (
+                                {/* {percentage !== null && (
                                   <span className="ml-1.5 text-xs">
                                     ({percentage.toFixed(0)}%)
                                   </span>
-                                )}
+                                )} */}
                               </>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className={`text-sm font-medium ${statusColor}`}>
-                            {status}
-                          </div>
-                        </td>
+                        
                       </tr>
                     );
                   })}
@@ -706,21 +708,21 @@ export default function StudentDashboardPage() {
           <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-white border border-gray-200 rounded p-3">
               <div className="text-xs text-gray-500 mb-1">Notés</div>
-              <div className="text-lg font-medium text-gray-900">
+              <div className="text-lg font-medium text-gray-900 cypher">
                 {scores.filter(s => s.score !== null).length}
               </div>
             </div>
             
             <div className="bg-white border border-gray-200 rounded p-3">
               <div className="text-xs text-gray-500 mb-1">En attente</div>
-              <div className="text-lg font-medium text-gray-500">
+              <div className="text-lg font-medium cypher text-gray-500">
                 {scores.filter(s => s.score === null).length}
               </div>
             </div>
             
             <div className="bg-white border border-gray-200 rounded p-3">
               <div className="text-xs text-gray-500 mb-1">Réussites</div>
-              <div className="text-lg font-medium text-green-600">
+              <div className="text-lg font-medium cypher text-green-600">
                 {scores
                   .filter(s => s.score !== null)
                   .filter(s => {
@@ -734,7 +736,7 @@ export default function StudentDashboardPage() {
             
             <div className="bg-white border border-gray-200 rounded p-3">
               <div className="text-xs text-gray-500 mb-1">Échecs</div>
-              <div className="text-lg font-medium text-red-600">
+              <div className="text-lg cypher font-medium text-red-600">
                 {scores
                   .filter(s => s.score !== null)
                   .filter(s => {
@@ -749,16 +751,18 @@ export default function StudentDashboardPage() {
         )}
 
         {/* Notes informatives */}
-        <div className="mt-6 text-xs text-gray-500 space-y-1">
-          <p>• Seuil de réussite : 5/10 ou 10/20</p>
-          <p>• Score manquant : travail non encore noté</p>
+        <div className="mt-4 cypher text-gray-500 space-y-1">
+          <p>
+            En cas de réclamation, présentez-vous avec votre justificatif pour modifier vos notes.
+          Faites le dans le plus bref délai possible.
+          </p>         
         </div>
       </div>
 
       {/* Footer minimaliste */}
-      <div className="mt-8 pt-4 border-t">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-xs text-gray-500">
-          Système académique • {new Date().getFullYear()}
+      <div className=" pt-4 border-t">
+        <div className="max-w-7xl cypher mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-xs text-gray-500">
+          Système disponible jusqu'à la fin du cours.• {new Date().getFullYear()}
         </div>
       </div>
     </div>

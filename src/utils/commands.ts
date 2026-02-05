@@ -1,255 +1,4 @@
 
-// import { fileSystem } from './fileSystem';
-
-// export const executeCommand = (command: string): string[] => {
-//   if (!command.trim()) return [];
-  
-//   const parts = command.trim().split(' ');
-//   const cmd = parts[0].toLowerCase();
-//   const args = parts.slice(1);
-  
-//   try {
-//     switch (cmd) {
-//       case 'cd': {
-//         if (args.length > 1) return ['Too many parameters'];
-//         const path = args[0] || '\\';
-//         const result = fileSystem.cd(path);
-        
-//         // Pour cd, on ne retourne rien (pas de message) si le changement a réussi
-//         // On retourne uniquement les messages d'erreur
-//         if (result && result !== '' && !result.toLowerCase().includes('changed to')) {
-//           return [result]; // Message d'erreur
-//         }
-//         return []; // Changement réussi - pas de sortie
-//       }
-      
-//       case 'dir': {
-//         const pattern = args[0];
-//         const items = fileSystem.dir(pattern);
-//         const totalFiles = items.filter(i => !i.isDir && i.name !== '.' && i.name !== '..').length;
-//         const totalDirs = items.filter(i => i.isDir && i.name !== '.' && i.name !== '..').length;
-//         const totalSize = items.reduce((sum, item) => sum + item.size, 0);
-        
-//         const output = [
-//           ` Directory of ${fileSystem.getCurrentPath()}`
-//         ];
-        
-//         if (pattern) {
-//           output[0] += ` (filter: ${pattern})`;
-//         }
-        
-//         output.push('');
-        
-//         if (items.length <= 2) { // Seulement . et ..
-//           output.push('File not found');
-//         } else {
-//           items.forEach(item => {
-//             if (item.isDir) {
-//               output.push(`${item.date}   <DIR>          ${item.name}`);
-//             } else {
-//               output.push(`${item.date}         ${item.name.padEnd(12)} ${item.size.toString().padStart(9)}`);
-//             }
-//           });
-//         }
-        
-//         output.push(
-//           '',
-//           `       ${totalFiles} File(s)      ${totalSize} bytes`,
-//           `       ${totalDirs} Dir(s)`
-//         );
-        
-//         return output;
-//       }
-      
-//       case 'mkdir':
-//       case 'md': {
-//         if (args.length === 0) return ['The syntax of the command is incorrect.'];
-//         const results = fileSystem.mkdir(args);
-//         return results;
-//       }
-      
-//       case 'rmdir':
-//       case 'rd': {
-//         if (args.length === 0) return ['Required parameter missing'];
-//         const { removed, errors } = fileSystem.rmdir(args);
-//         const output: string[] = [];
-        
-//         if (removed.length > 0) {
-//           removed.forEach(dir => output.push(`Directory removed: ${dir}`));
-//         }
-        
-//         if (errors.length > 0) {
-//           errors.forEach(error => output.push(`Error: ${error}`));
-//         }
-        
-//         return output;
-//       }
-      
-//       case 'touch': {
-//         if (args.length === 0) return ['The syntax of the command is incorrect.'];
-//         const results = fileSystem.touch(args);
-//         return results;
-//       }
-      
-//       case 'type': {
-//         if (args.length !== 1) return ['The syntax of the command is incorrect.'];
-//         try {
-//           const content = fileSystem.type(args[0]);
-//           return content ? content.split('\n') : ['(empty file)'];
-//         } catch (error: any) {
-//           return [error.message];
-//         }
-//       }
-      
-//       case 'del':
-//       case 'erase': {
-//         if (args.length === 0) return ['Required parameter missing'];
-        
-//         // Analyser les options
-//         const files: string[] = [];
-//         let prompt = false;
-//         let quiet = false;
-        
-//         for (const arg of args) {
-//           if (arg.startsWith('/')) {
-//             switch (arg.toLowerCase()) {
-//               case '/p':
-//                 prompt = true;
-//                 break;
-//               case '/q':
-//                 quiet = true;
-//                 break;
-//               default:
-//                 return [`Invalid switch - ${arg}`];
-//             }
-//           } else {
-//             files.push(arg);
-//           }
-//         }
-        
-//         if (files.length === 0) {
-//           return ['Required parameter missing'];
-//         }
-        
-//         const { deleted, errors } = fileSystem.del(files);
-//         const output: string[] = [];
-        
-//         if (prompt && deleted.length > 0) {
-//           output.push(`Delete ${deleted.join(', ')}? (Y/N)`);
-//           // Dans un vrai terminal, on attendrait la confirmation
-//           // Ici on simule la confirmation automatique
-//           output.push('(Assuming Y for simulation)');
-//         }
-        
-//         if (deleted.length > 0 && !quiet) {
-//           deleted.forEach(file => output.push(`Deleted: ${file}`));
-//         }
-        
-//         if (errors.length > 0) {
-//           errors.forEach(error => output.push(error));
-//         }
-        
-//         if (deleted.length === 0 && errors.length === 0 && !quiet) {
-//           output.push('No files deleted');
-//         }
-        
-//         return output;
-//       }
-      
-//       case 'ren':
-//       case 'rename': {
-//         if (args.length !== 2) return ['The syntax of the command is incorrect.'];
-//         try {
-//           const result = fileSystem.rename(args[0], args[1]);
-//           return [result];
-//         } catch (error: any) {
-//           return [error.message];
-//         }
-//       }
-      
-//       case 'move': {
-//         if (args.length !== 2) return ['The syntax of the command is incorrect.'];
-//         try {
-//           const result = fileSystem.move(args[0], args[1]);
-//           return [result];
-//         } catch (error: any) {
-//           return [error.message];
-//         }
-//       }
-      
-//       case 'copy': {
-//         if (args.length !== 2) return ['The syntax of the command is incorrect.'];
-//         try {
-//           const result = fileSystem.copy(args[0], args[1]);
-//           return [result];
-//         } catch (error: any) {
-//           return [error.message];
-//         }
-//       }
-      
-//       case 'cls':
-//       case 'clear': {
-//         return ['_CLEAR_'];
-//       }
-      
-//       case 'help': {
-//         return [
-//           'DOS Commands:',
-//           '════════════════════════════════════════════════════',
-//           'CD      [directory]  - Change directory',
-//           'DIR     [pattern]    - List files (supports wildcards)',
-//           'MD/MKDIR [path...]   - Create directories',
-//           'RD/RMDIR [dir...]    - Remove empty directories',
-//           'TOUCH   [file...]    - Create/update files',
-//           'TYPE    [file]       - View file content',
-//           'DEL/ERASE [file...]  - Delete files',
-//           '          /P         - Prompt before deleting',
-//           '          /Q         - Quiet mode',
-//           'REN/RENAME [old] [new] - Rename file',
-//           'MOVE    [src] [dest] - Move file',
-//           'COPY    [src] [dest] - Copy file',
-//           'CLS                  - Clear screen',
-//           'HELP                 - This help',
-//           '',
-//           'Wildcards:',
-//           '  *       - Matches any sequence of characters',
-//           '  ?       - Matches any single character',
-//           '',
-//           'Examples:',
-//           '  md USERS\\PETER\\DOCS         (creates nested directories)',
-//           '  rd USERS\\PETER               (removes empty directory)',
-//           '  del *.tmp                    (deletes all .tmp files)',
-//           '  erase /p *.bak               (prompts before deleting .bak files)',
-//           '  del /q temp.*                (quiet delete of temp.* files)',
-//           '  dir *.txt                    (list only .txt files)',
-//           '  dir C*.*                     (list files starting with C)',
-//           '  touch readme.txt notes.doc',
-//           '  type autoexec.bat',
-//           '  cd USERS\\PETER',
-//           '  copy file.txt backup.txt',
-//           '  move old.txt ..\\temp\\',
-//           '',
-//           'Note: MD=MKDIR, RD=RMDIR, DEL=ERASE, REN=RENAME'
-//         ];
-//       }
-      
-//       case 'ver':
-//       case 'version': {
-//         return [
-//           'MS-DOS Version 6.22',
-//           'Copyright Microsoft Corp 1981-1993'
-//         ];
-//       }
-      
-//       default: {
-//         return [`'${cmd}' is not recognized as an internal or external command,`,
-//                 'operable program or batch file.'];
-//       }
-//     }
-//   } catch (error: any) {
-//     return [error.message || 'Unknown error occurred'];
-//   }
-// };
 import { fileSystem } from './fileSystem';
 
 export const executeCommand = (command: string): string[] => {
@@ -266,20 +15,20 @@ export const executeCommand = (command: string): string[] => {
         const path = args[0] || '\\';
         const result = fileSystem.cd(path);
         
-        // Pour cd, on ne retourne rien (pas de message) si le changement a réussi
-        // On retourne uniquement les messages d'erreur
         if (result && result !== '' && !result.toLowerCase().includes('changed to')) {
-          return [result]; // Message d'erreur
+          return [result];
         }
-        return []; // Changement réussi - pas de sortie
+        return [];
       }
       
       case 'dir': {
         const pattern = args[0];
         const items = fileSystem.dir(pattern);
-        const totalFiles = items.filter(i => !i.isDir && i.name !== '.' && i.name !== '..').length;
-        const totalDirs = items.filter(i => i.isDir && i.name !== '.' && i.name !== '..').length;
-        const totalSize = items.reduce((sum, item) => sum + item.size, 0);
+        
+        const filteredItems = items.filter(i => i.name !== '.' && i.name !== '..');
+        const totalFiles = filteredItems.filter(i => !i.isDir).length;
+        const totalDirs = filteredItems.filter(i => i.isDir).length;
+        const totalSize = filteredItems.reduce((sum, item) => sum + item.size, 0);
         
         const output = [
           ` Répertoire de ${fileSystem.getCurrentPath()}`
@@ -291,25 +40,58 @@ export const executeCommand = (command: string): string[] => {
         
         output.push('');
         
-        if (items.length <= 2) { // Seulement . et ..
+        if (items.length <= 2) {
           output.push('Aucun fichier trouvé');
         } else {
           items.forEach(item => {
+            if (item.name === '.' || item.name === '..') return;
+            
+            // Formater la date: convertir de "MM-DD-YY" à "DD/MM/YYYY"
+            const [month, day, yearShort] = item.date.split('-');
+            const year = yearShort && yearShort.length === 2 ? `20${yearShort}` : '2026';
+            const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+            
             if (item.isDir) {
-              output.push(`${item.date}   <DIR>          ${item.name}`);
+              // Pour les répertoires
+              output.push(`${formattedDate}  ${item.time || '00:00'}    <DIR>          ${item.name}`);
             } else {
-              output.push(`${item.date}         ${item.name.padEnd(12)} ${item.size.toString().padStart(9)}`);
+              // Pour les fichiers
+              const sizeStr = item.size.toLocaleString();
+              const paddedSize = sizeStr.padStart(15);
+              output.push(`${formattedDate}  ${item.time || '00:00'}    ${paddedSize} ${item.name}`);
             }
           });
         }
         
         output.push(
           '',
-          `       ${totalFiles} Fichier(s)      ${totalSize} octets`,
-          `       ${totalDirs} Répertoire(s)`
+          `    ${totalFiles} fichier(s)       ${totalSize.toLocaleString()} octets`,
+          `    ${totalDirs} répertoire(s)`
         );
         
         return output;
+      }
+      
+      case 'tree': {
+        const path = args[0] || '.';
+        
+        try {
+          const originalPath = fileSystem.getCurrentPath();
+          
+          if (path !== '.') {
+            fileSystem.cd(path);
+          }
+          
+          const treeOutput = fileSystem.tree();
+          
+          if (path !== '.') {
+            fileSystem.cd(originalPath);
+          }
+          
+          return treeOutput;
+        } catch (error: any) {
+          return [error.message];
+        }
       }
       
       case 'mkdir':
@@ -357,7 +139,6 @@ export const executeCommand = (command: string): string[] => {
       case 'erase': {
         if (args.length === 0) return ['Paramètre requis manquant'];
         
-        // Analyser les options
         const files: string[] = [];
         let prompt = false;
         let quiet = false;
@@ -388,8 +169,6 @@ export const executeCommand = (command: string): string[] => {
         
         if (prompt && deleted.length > 0) {
           output.push(`Supprimer ${deleted.join(', ')} ? (O/N)`);
-          // Dans un vrai terminal, on attendrait la confirmation
-          // Ici on simule la confirmation automatique
           output.push('(Réponse Oui pour la simulation)');
         }
         
@@ -455,6 +234,7 @@ export const executeCommand = (command: string): string[] => {
           '════════════════════════════════════════════════════',
           'CD      [répertoire]  - Changer de répertoire',
           'DIR     [pattern]     - Lister les fichiers (jokers supportés)',
+          'TREE    [répertoire]  - Afficher l\'arborescence des répertoires',
           'MD/MKDIR [chemins...] - Créer des répertoires',
           'RD/RMDIR [rép...]     - Supprimer des répertoires vides',
           'TOUCH   [fichiers...] - Créer/mettre à jour des fichiers',
@@ -468,23 +248,18 @@ export const executeCommand = (command: string): string[] => {
           'CLS                    - Effacer l\'écran',
           'HELP                   - Afficher cette aide',
           '',
-          'Jokers (wildcards):',
-          '  *       - Correspond à n\'importe quelle séquence de caractères',
-          '  ?       - Correspond à un seul caractère',
+          'Règles de noms de fichiers:',
+          '  • Les espaces sont autorisés',
+          '  • Les noms longs sont autorisés (max 255 caractères)',
+          '  • Interdit: < > : " | et caractères de contrôle',
+          '  • Les points multiples sont autorisés',
           '',
           'Exemples:',
-          '  md UTILISATEURS\\PIERRE\\DOCS    (crée des répertoires imbriqués)',
-          '  rd UTILISATEURS\\PIERRE          (supprime un répertoire vide)',
-          '  del *.tmp                       (supprime tous les fichiers .tmp)',
-          '  effacer /p *.bak                (demande confirmation pour .bak)',
-          '  del /q temp.*                   (suppression silencieuse de temp.*)',
-          '  dir *.txt                       (liste uniquement les .txt)',
-          '  dir C*.*                        (liste les fichiers commençant par C)',
-          '  touch liremoi.txt notes.doc',
-          '  type autoexec.bat',
-          '  cd UTILISATEURS\\PIERRE',
-          '  copy fichier.txt sauvegarde.txt',
-          '  move ancien.txt ..\\temp\\',
+          '  dir *.txt              (liste uniquement les fichiers .txt)',
+          '  dir C*.*               (liste les fichiers commençant par C)',
+          '  touch "mon fichier.txt" (créer un fichier avec espace)',
+          '  touch rapport.v2.final.docx',
+          '  ren old.txt "nouveau nom.txt"',
           '',
           'Note: MD=MKDIR, RD=RMDIR, DEL=EFFACER, REN=RENAME, MOVE=DEPLACER, COPY=COPIER'
         ];
