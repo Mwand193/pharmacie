@@ -319,7 +319,53 @@ export class VirtualFileSystem {
       .replace(/\?/g, '.');
     return new RegExp(`^${escaped}$`, 'i');
   }
+  echo(text: string, fileName: string, mode: 'append' | 'overwrite' = 'overwrite'): boolean {
+  if (!fileName || fileName.trim() === '') {
+    throw new Error('Nom de fichier requis');
+  }
   
+  const trimmedName = fileName.trim();
+  
+  if (!this.validateName(trimmedName)) {
+    throw new Error(`Nom de fichier invalide : "${trimmedName}"`);
+  }
+  
+  const existing = Array.from(this.currentDir.children?.entries() || [])
+    .find(([key]) => key.toLowerCase() === trimmedName.toLowerCase());
+  
+  const now = this.getDOSDate();
+  
+  if (mode === 'overwrite') {
+    // Écraser ou créer le fichier
+    this.currentDir.children!.set(trimmedName, {
+      name: trimmedName,
+      type: 'file',
+      content: text,
+      size: text.length,
+      created: now,
+      parent: this.currentDir
+    });
+  } else if (mode === 'append') {
+    // Ajouter au fichier existant ou créer
+    if (existing && existing[1].type === 'file') {
+      const newContent = (existing[1].content || '') + '\n' + text;
+      existing[1].content = newContent;
+      existing[1].size = newContent.length;
+      existing[1].created = now;
+    } else {
+      this.currentDir.children!.set(trimmedName, {
+        name: trimmedName,
+        type: 'file',
+        content: text,
+        size: text.length,
+        created: now,
+        parent: this.currentDir
+      });
+    }
+  }
+  
+  return true;
+}
   private resolvePath(path: string): FileSystemItem | null {
     if (!path || path === '\\' || path === '/') return this.root;
     if (path === '.') return this.currentDir;

@@ -72,6 +72,88 @@ export const executeCommand = (command: string): string[] => {
         return output;
       }
       
+
+
+      case 'echo': {
+  if (args.length === 0) {
+    return ['ECHO est activé'];
+  }
+  
+  let echoText = args.join(' ');
+  let outputLine = '';
+  
+  // Gérer les variables d'environnement (version simple)
+  if (echoText.includes('%')) {
+    // Variables simples supportées
+    const vars: { [key: string]: string } = {
+      '%PATH%': 'C:\\WINDOWS;C:\\WINDOWS\\SYSTEM32',
+      '%TEMP%': 'C:\\WINDOWS\\TEMP',
+      '%WINDIR%': 'C:\\WINDOWS',
+      '%SYSTEMROOT%': 'C:\\WINDOWS',
+      '%COMPUTERNAME%': 'DOS-PC',
+      '%USERNAME%': 'Jean',
+      '%DATE%': new Date().toLocaleDateString('fr-FR'),
+      '%TIME%': new Date().toLocaleTimeString('fr-FR'),
+      '%CD%': fileSystem.getCurrentPath(),
+      '%PROMPT%': '$P$G',
+      '%OS%': 'MS-DOS',
+      '%VERSION%': '6.22'
+    };
+    
+    Object.keys(vars).forEach(varName => {
+      if (echoText.includes(varName)) {
+        echoText = echoText.replace(new RegExp(varName.replace(/%/g, '\\%'), 'g'), vars[varName]);
+      }
+    });
+    
+    // Supprimer les variables non reconnues
+    echoText = echoText.replace(/%[^%]+%/g, '');
+  }
+  
+  // Gérer ON/OFF
+  if (args[0]?.toUpperCase() === 'ON') {
+    return ['ECHO est activé'];
+  } else if (args[0]?.toUpperCase() === 'OFF') {
+    return ['ECHO est désactivé'];
+  }
+  
+  // Supprimer les guillemets s'ils entourent toute la chaîne
+  if ((echoText.startsWith('"') && echoText.endsWith('"')) || 
+      (echoText.startsWith("'") && echoText.endsWith("'"))) {
+    echoText = echoText.substring(1, echoText.length - 1);
+  }
+  
+  outputLine = echoText;
+  
+  // Gérer la redirection vers un fichier
+  const redirectionMatch = echoText.match(/^(.*?)\s*(>>|>)\s*(.+)$/);
+  if (redirectionMatch) {
+    const [, text, operator, filename] = redirectionMatch;
+    const cleanText = text.trim();
+    const cleanFilename = filename.trim();
+    
+    try {
+      if (operator === '>') {
+        // Écraser le fichier
+        const fileCreated = fileSystem.echo(cleanText, cleanFilename, 'overwrite');
+        if (fileCreated) {
+          return [`Contenu écrit dans ${cleanFilename}`];
+        }
+      } else if (operator === '>>') {
+        // Ajouter au fichier
+        const fileAppended = fileSystem.echo(cleanText, cleanFilename, 'append');
+        if (fileAppended) {
+          return [`Contenu ajouté à ${cleanFilename}`];
+        }
+      }
+    } catch (error: any) {
+      return [error.message];
+    }
+  }
+  
+  return [outputLine];
+}
+
       case 'tree': {
         const path = args[0] || '.';
         
