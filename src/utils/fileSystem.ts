@@ -812,48 +812,73 @@ export class VirtualFileSystem {
     
     return `Déplacé ${sourceItem.name} vers ${destName}`;
   }
-  
-  copy(source: string, dest: string): string {
-    if (!source || source.trim() === '' || !dest || dest.trim() === '') {
-      throw new Error('La syntaxe de la commande est incorrecte.');
-    }
-    
-    const trimmedSource = source.trim();
-    const trimmedDest = dest.trim();
-    
-    const sourceItem = this.resolvePath(trimmedSource);
-    if (!sourceItem || sourceItem.type === 'dir') {
-      throw new Error(`Source non trouvée ou est un répertoire : ${trimmedSource}`);
-    }
-    
-    const destParentPath = this.resolveParentPath(trimmedDest);
-    if (!destParentPath) {
-      throw new Error(`Destination invalide : ${trimmedDest}`);
-    }
-    
-    const { parent: destParent, name: destName } = destParentPath;
-    
-    if (!this.validateName(destName)) {
-      throw new Error(`Nom de fichier invalide : "${destName}"`);
-    }
-    
-    const existingDest = Array.from(destParent.children?.entries() || [])
-      .find(([key]) => key.toLowerCase() === destName.toLowerCase());
-    
-    if (existingDest) {
-      throw new Error(`La destination existe déjà : ${existingDest[0]}`);
-    }
-    
-    destParent.children!.set(destName, {
-      ...JSON.parse(JSON.stringify(sourceItem)),
-      name: destName,
-      parent: destParent,
-      created: this.getDOSDate()
-    });
-    
-    return `Copié ${sourceItem.name} vers ${destName}`;
+copy(source: string, dest: string): string {
+  if (!source || source.trim() === '' || !dest || dest.trim() === '') {
+    throw new Error('La syntaxe de la commande est incorrecte.');
   }
   
+  const trimmedSource = source.trim();
+  const trimmedDest = dest.trim();
+  
+  // 1. Récupérer le fichier source
+  const sourceItem = this.resolvePath(trimmedSource);
+  if (!sourceItem) {
+    throw new Error(`Fichier non trouvé : ${trimmedSource}`);
+  }
+  
+  if (sourceItem.type === 'dir') {
+    throw new Error(`La copie de répertoires n'est pas supportée : ${trimmedSource}`);
+  }
+  
+  // 2. Analyser la destination
+  let destParent: FileSystemItem;
+  let destName: string;
+  
+  // Vérifier si la destination est un répertoire existant
+  const destAsDir = this.resolvePath(trimmedDest);
+  if (destAsDir && destAsDir.type === 'dir') {
+    // Si la destination est un répertoire, copier avec le même nom
+    destParent = destAsDir;
+    destName = sourceItem.name;
+  } else {
+    // Sinon, analyser comme un chemin de fichier
+    const destParentPath = this.resolveParentPath(trimmedDest);
+    if (!destParentPath) {
+      throw new Error(`Chemin de destination invalide : ${trimmedDest}`);
+    }
+    
+    destParent = destParentPath.parent;
+    destName = destParentPath.name;
+  }
+  
+  // 3. Vérifier si le nom est valide
+  if (!this.validateName(destName)) {
+    throw new Error(`Nom de fichier invalide : "${destName}"`);
+  }
+  
+  // 4. Vérifier si le fichier de destination existe déjà
+  // Recherche insensible à la casse
+  const existingDest = Array.from(destParent.children?.entries() || [])
+    .find(([key]) => key.toLowerCase() === destName.toLowerCase());
+  
+  if (existingDest) {
+    // DOS permet généralement d'écraser sans demander
+    // Pour simuler DOS, on écrase silencieusement
+    // Ou vous pouvez ajouter une option /Y pour forcer l'écrasement
+    destParent.children!.delete(existingDest[0]);
+  }
+  
+  // 5. Créer la copie
+  const now = this.getDOSDate();
+  destParent.children!.set(destName, {
+    ...JSON.parse(JSON.stringify(sourceItem)),
+    name: destName,
+    parent: destParent,
+    created: now
+  });
+  
+  return `Copié ${sourceItem.name} vers ${destName}`;
+}
   tree(): string[] {
     const lines: string[] = [];
     
