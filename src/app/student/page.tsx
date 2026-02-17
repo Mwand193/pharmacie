@@ -1561,8 +1561,7 @@ export default function StudentDashboardPage() {
         </div>
 
         {/* Nouvelle section: Calcul des moyennes */}
-        <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Carte Moyenne TD */}
+        <div className="mb-6 grid hidden grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white border border-gray-200 p-4">
             <div className="text-xs text-gray-500 mb-1">Moyenne TD (30%)</div>
             <div className="text-xl font-bold text-blue-600 cypher">
@@ -1609,6 +1608,30 @@ export default function StudentDashboardPage() {
             </div>
           </div>
         </div>
+
+
+{/* <div className='cypher mb-6'>
+
+  La moyenne vous sera envoyer par la coordination, moyenne finale sera sur 10 , la totalite de cotes de TD sur 3 ,
+  l'exposee sur 3 et l'interrogation sur 4 , d'ici 18 heure vous aller verifier la mise a jour en terme de reclamation
+</div> */}
+
+<div className="cypher mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded shadow">
+  <h2 className="text-lg font-semibold text-yellow-700 mb-2">📌 Informations sur la moyenne</h2>
+  <p className="text-gray-800 leading-relaxed">
+    La moyenne vous sera envoyée par la coordination. 
+    <br />
+    <span className="font-bold">Moyenne finale :</span> sur 10 
+    <br />
+    <span className="font-bold">Totalité des cotes de TD :</span> sur 3 
+    <br />
+    <span className="font-bold">Exposé :</span> sur 3 
+    <br />
+    <span className="font-bold">Interrogation :</span> sur 4 
+    <br />
+    D’ici <span className="text-red-600 font-semibold">18h00</span>, vous pourrez vérifier la mise à jour en termes de réclamation.
+  </p>
+</div>
 
         {/* Filtres */}
         <div className="mb-4">
