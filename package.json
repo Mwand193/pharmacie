@@ -1,6 +1,6 @@
 {
   "name": "app-for-l1",
-  "version": "0.3.9",
+  "version": "0.8.9",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
