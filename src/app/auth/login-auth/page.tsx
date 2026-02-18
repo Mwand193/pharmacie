@@ -487,7 +487,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
             <div>
-                        <div className='text-red-500 text-center w-max w mx-auto flex items-center cypher text-700 '>
+                        <div className='text-red-500 text-center flex items-center cypher text-700 '>
                          System indisponible pour le moment
                         </div>
                       </div>
@@ -509,7 +509,138 @@ export default function LoginPage() {
   </p>
 </div>
 
-     
+        <div className="bg-white border rounded-lg p-6">
+          {!showPasswordChange ? (
+            <>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <div className="relative">
+                    <div className="text-xs text-gray-600 mb-1">Matricule</div>
+                    <input
+                      type="text"
+                      value={matricule}
+                      onChange={(e) => setMatricule(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
+                      placeholder="ADM001, ETU001"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="relative">
+                    <div className="text-xs text-gray-600 mb-1">Mot de passe</div>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Connexion...' : 'Se connecter'}
+                </button>
+                <p className=' text-sm text-center cypher  text-gray-500'> 
+  Powered By Peternz/co LoginSystem V01
+</p>
+              </form>
+
+             
+
+            
+            </>
+          ) : (
+            <>
+              <div className="text-center mb-6">
+                <div className="font-medium mb-1">Changement de mot de passe requis</div>
+                <div className="text-sm text-gray-600">
+                  C'est votre première connexion. Pour des raisons de sécurité, veuillez choisir un nouveau mot de passe.
+                </div>
+              </div>
+
+              {passwordSuccess && (
+                <div className="p-3 bg-green-50 text-green-700 text-sm rounded mb-4">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded text-sm">
+                  <div className="font-medium">{userToUpdate?.username || userToUpdate?.matricule}</div>
+                  <div className="text-gray-600">{userToUpdate?.matricule}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Rôle: {userToUpdate?.role === 'admin' ? 'Administrateur' : 'Étudiant'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">Nouveau mot de passe</div>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
+                    placeholder="Minimum 4 caractères"
+                    required
+                    autoFocus
+                  />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Votre ancien mot de passe était <span className="font-mono">{password}</span>
+                  </div>
+                </div>
+
+                {passwordError && (
+                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded">
+                    {passwordError}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={backToLogin}
+                    disabled={loading}
+                    className="flex-1 py-2 border rounded hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Retour
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Mise à jour...
+                      </span>
+                    ) : 'Changer le mot de passe'}
+                  </button>
+                </div>
+
+              </form>
+            
+            </>
+          )}
+        </div>
 
       
       </div>
