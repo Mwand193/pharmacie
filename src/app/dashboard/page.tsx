@@ -1,216 +1,269 @@
+// app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { 
+  Package, AlertTriangle, TrendingUp, Clock,
+  CheckCircle, XCircle, Truck, Pill,
+  ArrowUp, ArrowDown, Activity
+} from 'lucide-react';
 
-export default function AdminDashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    admins: 0,
-    students: 0
+interface DashboardStats {
+  totalLots: number;
+  lotsActifs: number;
+  lotsExpires: number;
+  lotsEpuises: number;
+  transfertsEnCours: number;
+  anomalies: number;
+  derniereActivite: string;
+}
+
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalLots: 0,
+    lotsActifs: 0,
+    lotsExpires: 0,
+    lotsEpuises: 0,
+    transfertsEnCours: 0,
+    anomalies: 0,
+    derniereActivite: ''
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    
-    if (!userStr) {
-      router.push('/login');
-      return;
+    if (user) {
+      fetchStats();
     }
-    
-    const userData = JSON.parse(userStr);
-    
-    if (userData.role !== 'admin') {
-      router.push('/student');
-      return;
-    }
-    
-    setUser(userData);
-    fetchStats();
-    setLoading(false);
-  }, [router]);
+  }, [user]);
 
   const fetchStats = async () => {
     try {
-      const { count: total } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
+      // Statistiques des lots
+      const { data: lots } = await supabase
+        .from('lots')
+        .select('*');
 
-      const { count: admins } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'admin');
+      if (lots) {
+        const now = new Date();
+        setStats(prev => ({
+          ...prev,
+          totalLots: lots.length,
+          lotsActifs: lots.filter(l => 
+            l.quantite_totale > 0 && new Date(l.date_expiration) > now
+          ).length,
+          lotsExpires: lots.filter(l => 
+            new Date(l.date_expiration) <= now
+          ).length,
+          lotsEpuises: lots.filter(l => l.quantite_totale === 0).length,
+        }));
+      }
 
-      const { count: students } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'student');
+      // Mouvements récents
+      const { data: mouvements } = await supabase
+        .from('mouvements')
+        .select('created_at')
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      setStats({
-        totalUsers: total || 0,
-        admins: admins || 0,
-        students: students || 0
-      });
+      if (mouvements && mouvements.length > 0) {
+        setStats(prev => ({
+          ...prev,
+          derniereActivite: mouvements[0].created_at
+        }));
+      }
+
     } catch (error) {
-      console.error('Erreur stats:', error);
+      console.error('Erreur chargement stats:', error);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    router.push('/login');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+      <div className="flex items-center animate-pulse flex-cols justify-center min-h-screen">
+       <Package className='w-12 h-12 text-gray-500'/>
+       <>
+       Chargement...
+       </>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
+    <div className="p-6 max-w-7xl mx-auto ">
+      {/* En-tête */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-light text-gray-900">
+          Tableau de bord
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {user?.nom_entite} • {new Date().toLocaleDateString('fr-FR', { 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+          })}
+        </p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white border border-gray-200 -lg p-5">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-medium">Administration</h1>
-              <div className="text-sm text-gray-600">
-                {user?.username} • {user?.matricule}
-              </div>
+              <p className="text-sm text-gray-500">Total Lots</p>
+              <p className="text-2xl font-bold mt-1">{stats.totalLots}</p>
             </div>
-            
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              Déconnexion
-            </button>
+            <div className="w-12 h-12 bg-blue-50 -full flex items-center justify-center">
+              <Package className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center text-xs text-gray-500">
+            <span>{stats.lotsActifs} lots actifs</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 -lg p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Lots Actifs</p>
+              <p className="text-2xl font-bold mt-1 text-green-600">{stats.lotsActifs}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-50 -full flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center text-xs text-green-600">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            <span>Disponibles</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 -lg p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Lots Expirés</p>
+              <p className="text-2xl font-bold mt-1 text-red-600">{stats.lotsExpires}</p>
+            </div>
+            <div className="w-12 h-12 bg-red-50 -full flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center text-xs text-red-600">
+            <Clock className="w-3 h-3 mr-1" />
+            <span>Action requise</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 -lg p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Transferts</p>
+              <p className="text-2xl font-bold mt-1 text-purple-600">{stats.transfertsEnCours}</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-50 -full flex items-center justify-center">
+              <Truck className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center text-xs text-gray-500">
+            <Activity className="w-3 h-3 mr-1" />
+            <span>En transit</span>
           </div>
         </div>
       </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="border rounded p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="text-sm text-gray-600">Utilisateurs</div>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
+      {/* Stats détaillées */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Distribution des lots */}
+        <div className="bg-white border border-gray-200 -lg p-6 lg:col-span-2">
+          <h3 className="text-lg font-medium mb-4">État des lots</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-500">Actifs</span>
+                <span className="font-medium">{stats.lotsActifs}</span>
+              </div>
+              <div className="w-full bg-gray-100 -full h-2">
+                <div 
+                  className="bg-green-500 h-2 -full" 
+                  style={{ width: `${(stats.lotsActifs / stats.totalLots) * 100}%` }}
+                ></div>
               </div>
             </div>
-            <div className="mt-3 pt-3 border-t text-xs text-gray-500">
-              {stats.admins} admins • {stats.students} étudiants
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-500">Expirés</span>
+                <span className="font-medium">{stats.lotsExpires}</span>
+              </div>
+              <div className="w-full bg-gray-100 -full h-2">
+                <div 
+                  className="bg-red-500 h-2 -full" 
+                  style={{ width: `${(stats.lotsExpires / stats.totalLots) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-500">Épuisés</span>
+                <span className="font-medium">{stats.lotsEpuises}</span>
+              </div>
+              <div className="w-full bg-gray-100 -full h-2">
+                <div 
+                  className="bg-gray-400 h-2 -full" 
+                  style={{ width: `${(stats.lotsEpuises / stats.totalLots) * 100}%` }}
+                ></div>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="border rounded p-4">
-            <div className="flex justify-between items-center">
+        {/* Dernières activités */}
+        <div className="bg-white border border-gray-200 -lg p-6">
+          <h3 className="text-lg font-medium mb-4">Activité récente</h3>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="w-2 h-2 mt-2 bg-green-500 -full flex-shrink-0"></div>
               <div>
-                <div className="text-sm text-gray-600">Administrateurs</div>
-                <div className="text-2xl font-bold">{stats.admins}</div>
+                <p className="text-sm font-medium">Dernière mise à jour</p>
+                <p className="text-xs text-gray-500">
+                  {stats.derniereActivite 
+                    ? new Date(stats.derniereActivite).toLocaleString('fr-FR')
+                    : 'Aucune activité'
+                  }
+                </p>
               </div>
-            </div>
-            <div className="mt-3 pt-3 border-t text-xs text-green-600">
-              Connecté en tant qu'admin
-            </div>
-          </div>
-
-          <div className="border rounded p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="text-sm text-gray-600">Étudiants</div>
-                <div className="text-2xl font-bold">{stats.students}</div>
-              </div>
-            </div>
-            <div className="mt-3 pt-3 border-t text-xs text-gray-500">
-              Gérer les comptes
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Menu */}
-        <h2 className="text-lg font-medium mb-4">Gestion</h2>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <a href="/admin/users" className="block">
-            <div className="border rounded p-4 hover:border-blue-300">
-              <div className="flex justify-between mb-3">
-                <div className="text-gray-600">Utilisateurs</div>
-                <div className="text-xl font-bold">{stats.totalUsers}</div>
-              </div>
-              <div className="text-sm text-gray-600">Gérer les utilisateurs</div>
-            </div>
-          </a>
-
-          <a href="/admin/students" className="block">
-            <div className="border rounded p-4 hover:border-blue-300">
-              <div className="flex justify-between mb-3">
-                <div className="text-gray-600">Étudiants</div>
-                <div className="text-xl font-bold">{stats.students}</div>
-              </div>
-              <div className="text-sm text-gray-600">Gérer les étudiants</div>
-            </div>
-          </a>
-
-          <a href="/admin/stats" className="block">
-            <div className="border rounded p-4 hover:border-blue-300">
-              <div className="mb-3">
-                <div className="text-gray-600">Statistiques</div>
-              </div>
-              <div className="text-sm text-gray-600">Voir les statistiques</div>
-            </div>
-          </a>
-
-          <a href="/admin/config" className="block">
-            <div className="border rounded p-4 hover:border-blue-300">
-              <div className="mb-3">
-                <div className="text-gray-600">Paramètres</div>
-              </div>
-              <div className="text-sm text-gray-600">Configurer le système</div>
-            </div>
-          </a>
+      {/* Actions rapides */}
+      <div className="bg-white border border-gray-200 -lg p-6">
+        <h3 className="text-lg font-medium mb-4">Actions rapides</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {user?.role === 'fabricant' && (
+            <>
+              <button className="p-4 border border-gray-200 -lg hover:border-green-300 hover:bg-green-50 transition-colors text-center">
+                <Pill className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                <span className="text-sm">Nouveau lot</span>
+              </button>
+              <button className="p-4 border border-gray-200 -lg hover:border-green-300 hover:bg-green-50 transition-colors text-center">
+                <Package className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                <span className="text-sm">Fournir lot</span>
+              </button>
+            </>
+          )}
+          {user?.role === 'distributeur' && (
+            <>
+              <button className="p-4 border border-gray-200 -lg hover:border-green-300 hover:bg-green-50 transition-colors text-center">
+                <Truck className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                <span className="text-sm">Réception</span>
+              </button>
+            </>
+          )}
         </div>
-
-        {/* Actions */}
-        <div className="border rounded p-6">
-          <h3 className="font-medium mb-4">Actions rapides</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <a href="/admin/users/create" className="block">
-              <div className="p-3 bg-gray-50 hover:bg-gray-100 rounded">
-                <div className="font-medium text-gray-900">Nouvel utilisateur</div>
-              </div>
-            </a>
-
-            <a href="/admin/users" className="block">
-              <div className="p-3 bg-gray-50 hover:bg-gray-100 rounded">
-                <div className="font-medium text-gray-900">Liste complète</div>
-              </div>
-            </a>
-
-            <button
-              onClick={fetchStats}
-              className="p-3 bg-gray-50 hover:bg-gray-100 rounded text-left"
-            >
-              <div className="font-medium text-gray-900">Actualiser</div>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="p-3 bg-gray-50 hover:bg-gray-100 rounded text-left"
-            >
-              <div className="font-medium text-gray-900">Déconnexion</div>
-            </button>
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
