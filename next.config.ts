@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     },
   ],
   experimental: {
+    serverActions:{
+ bodySizeLimit: '5mb',
+    },
     optimizeCss: true, // (Laisse actif pour un CSS optimisé, mais surveille le rendu)
   },
 };

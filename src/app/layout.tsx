@@ -1,20 +1,37 @@
-export const dynamic = 'force-dynamic';
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import Navigation from "@/components/Navigation";
+import { AuthProvider } from "@/context/AuthContext";
 
-import './globals.css'
-import { ThemeProvider } from '@/context/ThemeContext'
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "PharmaTrace",
+  description: "Traçabilité pharmaceutique",
+};
+
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className='bg-red-600 overscroll-y-auto dark:to-gray-800'>
-       
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+    <html lang="fr">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <AuthProvider>
+          <Navigation />
+          <main>{children}</main>
+        </AuthProvider>
       </body>
     </html>
-  )
+  );
 }

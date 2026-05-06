@@ -1,358 +1,74 @@
-// 'use client';
 
-// import { useState } from 'react';
-// import { useRouter } from 'next/navigation';
-// import { supabase } from '@/lib/supabase';
-
-// export default function LoginPage() {
-//   const router = useRouter();
-//   const [matricule, setMatricule] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-  
-//   const [showPasswordChange, setShowPasswordChange] = useState(false);
-//   const [userToUpdate, setUserToUpdate] = useState<any>(null);
-//   const [newPassword, setNewPassword] = useState('');
-//   const [passwordError, setPasswordError] = useState('');
-//   const [passwordSuccess, setPasswordSuccess] = useState('');
-
-//   const handleLogin = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setError('');
-//     setPasswordError('');
-//     setPasswordSuccess('');
-
-//     try {
-//       const { data: user, error: userError } = await supabase
-//         .from('users')
-//         .select('*')
-//         .eq('matricule', matricule.toUpperCase())
-//         .eq('password', password)
-//         .single();
-
-//       if (userError || !user) {
-//         throw new Error('Matricule ou mot de passe incorrect');
-//       }
-
-//       const defaultPasswords = ['123456', 'password', 'admin123', 'student123', user.matricule.toLowerCase()];
-//       const isDefaultPassword = defaultPasswords.includes(password);
-      
-//       if (isDefaultPassword) {
-//         setUserToUpdate(user);
-//         setShowPasswordChange(true);
-//         setPasswordSuccess('Première connexion. Choisissez un nouveau mot de passe.');
-//         setLoading(false);
-//         return;
-//       }
-
-//       localStorage.setItem('user', JSON.stringify(user));
-      
-//       if (user.role === 'admin') {
-//         router.push('/dashboard');
-//       } else {
-//         router.push('/student');
-//       }
-      
-//     } catch (err) {
-//       setError('Matricule ou mot de passe incorrect');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const handlePasswordChange = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setPasswordError('');
-//     setPasswordSuccess('');
-
-//     if (newPassword.length < 4) {
-//       setPasswordError('Le mot de passe doit contenir au moins 4 caractères');
-//       return;
-//     }
-
-//     if (newPassword === password) {
-//       setPasswordError('Le nouveau mot de passe doit être différent');
-//       return;
-//     }
-
-//     setLoading(true);
-
-//     try {
-//       const { error: updateError } = await supabase
-//         .from('users')
-//         .update({ 
-//           password: newPassword,
-//           updated_at: new Date().toISOString()
-//         })
-//         .eq('id', userToUpdate.id);
-
-//       if (updateError) throw updateError;
-
-//       const updatedUser = { ...userToUpdate, password: newPassword };
-//       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-//       setPasswordSuccess('Mot de passe mis à jour');
-      
-//       setTimeout(() => {
-//         if (updatedUser.role === 'admin') {
-//           router.push('/dashboard');
-//         } else {
-//           router.push('/dashboard');
-//         }
-//       }, 1000);
-
-//     } catch (err) {
-//       setPasswordError('Erreur lors de la mise à jour');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const quickLogin = (m: string, p: string) => {
-//     setMatricule(m);
-//     setPassword(p);
-//     setShowPasswordChange(false);
-//     setPasswordError('');
-//     setPasswordSuccess('');
-//   };
-
-//   const backToLogin = () => {
-//     setShowPasswordChange(false);
-//     setUserToUpdate(null);
-//     setNewPassword('');
-//     setPasswordError('');
-//     setPasswordSuccess('');
-//     setPassword('');
-//   };
-
-//   return (
-//     <div className="min-h-screen bg-white flex items-center justify-center p-4">
-//       <div className="max-w-md w-full">
-//         <div className="text-center mb-8">
-//           <div className="text-lg font-medium mb-2">Connexion</div>
-//           <div className="text-sm text-gray-600">Accédez à votre espace</div>
-//         </div>
-
-//         <div className="bg-white border rounded-lg p-6">
-//           {!showPasswordChange ? (
-//             <>
-//               <form onSubmit={handleLogin} className="space-y-4">
-//                 <div>
-//                   <div className="relative">
-//                     <div className="text-xs text-gray-600 mb-1">Matricule</div>
-//                     <input
-//                       type="text"
-//                       value={matricule}
-//                       onChange={(e) => setMatricule(e.target.value.toUpperCase())}
-//                       className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
-//                       placeholder="ADM001, ETU001"
-//                       required
-//                       autoFocus
-//                     />
-//                   </div>
-//                 </div>
-
-//                 <div>
-//                   <div className="relative">
-//                     <div className="text-xs text-gray-600 mb-1">Mot de passe</div>
-//                     <input
-//                       type="password"
-//                       value={password}
-//                       onChange={(e) => setPassword(e.target.value)}
-//                       className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
-//                       placeholder="••••••••"
-//                       required
-//                     />
-//                   </div>
-//                 </div>
-
-//                 {error && (
-//                   <div className="p-3 bg-red-50 text-red-700 text-sm rounded">
-//                     {error}
-//                   </div>
-//                 )}
-
-//                 <button
-//                   type="submit"
-//                   disabled={loading}
-//                   className="w-full py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
-//                 >
-//                   {loading ? 'Connexion...' : 'Se connecter'}
-//                 </button>
-//               </form>
-
-//               <div className="mt-6 pt-6 border-t">
-//                 <div className="text-center text-sm font-medium mb-3">Connexions rapides</div>
-//                 <div className="flex gap-2">
-//                   <button
-//                     type="button"
-//                     onClick={() => quickLogin('ADM001', 'admin123')}
-//                     className="flex-1 py-2 text-sm border rounded hover:bg-gray-50"
-//                   >
-//                     Admin
-//                   </button>
-//                   <button
-//                     type="button"
-//                     onClick={() => quickLogin('ETU001', 'student123')}
-//                     className="flex-1 py-2 text-sm border rounded hover:bg-gray-50"
-//                   >
-//                     Étudiant
-//                   </button>
-//                 </div>
-//               </div>
-
-//               <div className="mt-6 text-sm text-gray-600">
-//                 <div className="flex justify-between mb-1">
-//                   <span>Admin:</span>
-//                   <span>ADM001 / admin123</span>
-//                 </div>
-//                 <div className="flex justify-between">
-//                   <span>Étudiant:</span>
-//                   <span>ETU001 / student123</span>
-//                 </div>
-//               </div>
-//             </>
-//           ) : (
-//             <>
-//               <div className="text-center mb-6">
-//                 <div className="font-medium mb-1">Nouveau mot de passe</div>
-//                 <div className="text-sm text-gray-600">Pour la sécurité de votre compte</div>
-//               </div>
-
-//               {passwordSuccess && (
-//                 <div className="p-3 bg-green-50 text-green-700 text-sm rounded mb-4">
-//                   {passwordSuccess}
-//                 </div>
-//               )}
-
-//               <form onSubmit={handlePasswordChange} className="space-y-4">
-//                 <div className="p-3 bg-gray-50 rounded text-sm">
-//                   <div className="font-medium">{userToUpdate?.username}</div>
-//                   <div className="text-gray-600">{userToUpdate?.matricule}</div>
-//                 </div>
-
-//                 <div>
-//                   <div className="text-xs text-gray-600 mb-1">Nouveau mot de passe</div>
-//                   <input
-//                     type="password"
-//                     value={newPassword}
-//                     onChange={(e) => setNewPassword(e.target.value)}
-//                     className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
-//                     placeholder="Minimum 4 caractères"
-//                     required
-//                     autoFocus
-//                   />
-//                 </div>
-
-//                 {passwordError && (
-//                   <div className="p-3 bg-red-50 text-red-700 text-sm rounded">
-//                     {passwordError}
-//                   </div>
-//                 )}
-
-//                 <div className="flex gap-2">
-//                   <button
-//                     type="button"
-//                     onClick={backToLogin}
-//                     disabled={loading}
-//                     className="flex-1 py-2 border rounded hover:bg-gray-50 disabled:opacity-50"
-//                   >
-//                     Annuler
-//                   </button>
-//                   <button
-//                     type="submit"
-//                     disabled={loading}
-//                     className="flex-1 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
-//                   >
-//                     {loading ? 'Mise à jour...' : 'Changer'}
-//                   </button>
-//                 </div>
-//               </form>
-//             </>
-//           )}
-//         </div>
-
-//         <div className="text-center mt-6 text-sm text-gray-500">
-//           Système de gestion
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
+// app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { Eye, EyeOff, AlertCircle, CheckCircle, Pill } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, updateUser } = useAuth();
+  
   const [matricule, setMatricule] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [userToUpdate, setUserToUpdate] = useState<any>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setPasswordError('');
-    setPasswordSuccess('');
 
     try {
-      // 1. Chercher l'utilisateur par matricule
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('matricule', matricule.toUpperCase())
-        .single();
+      const result = await login(matricule, password);
 
-      if (userError || !user) {
-        throw new Error('Matricule ou mot de passe incorrect');
-      }
-
-      // 2. Vérifier si le mot de passe correspond
-      if (user.password !== password) {
-        throw new Error('Matricule ou mot de passe incorrect');
-      }
-
-      console.log('User found:', {
-        matricule: user.matricule,
-        first_login: user.first_login,
-        passwordMatch: user.password === password
-      });
-
-      // 3. Vérifier si c'est la première connexion
-      if (user.first_login === true) {
-        // Première connexion - forcer le changement de mot de passe
-        setUserToUpdate(user);
-        setShowPasswordChange(true);
-        setPasswordSuccess('Première connexion. Vous devez changer votre mot de passe.');
+      if (!result.success) {
+        setError(result.error || 'Identifiants invalides');
         setLoading(false);
         return;
       }
 
-      // 4. Connexion normale
-      localStorage.setItem('user', JSON.stringify(user));
+      if (result.requiresPasswordChange) {
+        setShowPasswordChange(true);
+        setPasswordSuccess('Première connexion. Nouveau mot de passe requis.');
+        setLoading(false);
+        return;
+      }
+
+      // Récupérer l'utilisateur stocké
+      const storedUser = JSON.parse(localStorage.getItem('medtrack-user') || '{}');
       
       // Redirection selon le rôle
-      if (user.role === 'admin') {
-        router.push('/dashboard');
-      } else {
-        router.push('/student');
+      switch(storedUser.role) {
+        case 'admin':
+          router.push('/dashboard/admin');
+          break;
+        case 'pharmacie':
+          router.push('/dashboard/pharmacie');
+          break;
+        case 'fabricant':
+          router.push('/dashboard/fabricant');
+          break;
+        case 'distributeur':
+          router.push('/dashboard/distributeur');
+          break;
+        default:
+          setError('Rôle utilisateur non reconnu');
       }
       
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'Matricule ou mot de passe incorrect');
+      setError('Erreur de connexion');
     } finally {
       setLoading(false);
     }
@@ -363,155 +79,293 @@ export default function LoginPage() {
     setPasswordError('');
     setPasswordSuccess('');
 
-    // Validation du nouveau mot de passe
     if (newPassword.length < 4) {
-      setPasswordError('Le mot de passe doit contenir au moins 4 caractères');
+      setPasswordError('Minimum 4 caractères');
       return;
     }
 
-    // Vérifier que le nouveau mot de passe est différent de l'ancien
-    if (newPassword === password) {
-      setPasswordError('Le nouveau mot de passe doit être différent de l\'ancien');
-      return;
-    }
-
-    setLoading(true);
+    setPasswordChangeLoading(true);
 
     try {
-      // Mettre à jour le mot de passe et first_login dans la base de données
+      const currentUser = JSON.parse(localStorage.getItem('medtrack-user') || '{}');
+      
       const { error: updateError } = await supabase
         .from('users')
         .update({ 
           password: newPassword,
-          first_login: false, // Passer à false après changement
+          first_login: false,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userToUpdate.id)
-        .select()
-        .single();
+        .eq('id', currentUser.id);
 
-      if (updateError) {
-        console.error('Update error details:', updateError);
-        
-        // Vérifier le type d'erreur
-        if (updateError.code === '23505') {
-          setPasswordError('Ce mot de passe est déjà utilisé. Veuillez en choisir un autre.');
-        } else if (updateError.code === '42501') {
-          setPasswordError('Permission refusée. Vérifiez vos droits de modification.');
-        } else {
-          setPasswordError(`Erreur lors de la mise à jour: ${updateError.message || 'Erreur inconnue'}`);
-        }
-        
-        setLoading(false);
-        return;
-      }
+      if (updateError) throw updateError;
 
-      // Récupérer l'utilisateur mis à jour
       const { data: updatedUser, error: fetchError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userToUpdate.id)
+        .eq('id', currentUser.id)
         .single();
 
       if (fetchError || !updatedUser) {
-        throw new Error('Erreur lors de la récupération des données utilisateur');
+        throw new Error('Erreur récupération données');
       }
 
-      console.log('User updated successfully:', {
-        id: updatedUser.id,
-        first_login: updatedUser.first_login,
-        password_changed: updatedUser.password !== userToUpdate.password
-      });
-
-      // Stocker l'utilisateur mis à jour
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      updateUser(updatedUser);
+      setPasswordSuccess('Mot de passe mis à jour ! Redirection...');
       
-      setPasswordSuccess('Mot de passe mis à jour avec succès ! Redirection en cours...');
-      
-      // Redirection après un délai
       setTimeout(() => {
-        if (updatedUser.role === 'admin') {
-          router.push('/dashboard');
-        } else {
-          router.push('/student');
+        // Redirection selon le rôle après changement de mot de passe
+        switch(updatedUser.role) {
+          case 'admin':
+            router.push('/dashboard/admin');
+            break;
+          case 'pharmacie':
+            router.push('/dashboard/pharmacie');
+            break;
+          case 'fabricant':
+            router.push('/dashboard/fabricant');
+            break;
+          case 'distributeur':
+            router.push('/dashboard/distributeur');
+            break;
+          default:
+            router.push('/login');
         }
       }, 1500);
 
     } catch (err: any) {
-      console.error('Password change error:', err);
-      setPasswordError(err.message || 'Erreur lors de la mise à jour du mot de passe');
-    } finally {
-      setLoading(false);
+      setPasswordError('Erreur mise à jour');
+      setPasswordChangeLoading(false);
     }
-  };
-
-  const quickLogin = (m: string, p: string) => {
-    setMatricule(m);
-    setPassword(p);
-    setShowPasswordChange(false);
-    setPasswordError('');
-    setPasswordSuccess('');
   };
 
   const backToLogin = () => {
     setShowPasswordChange(false);
-    setUserToUpdate(null);
     setNewPassword('');
     setPasswordError('');
     setPasswordSuccess('');
     setPassword('');
     setMatricule('');
+    setPasswordChangeLoading(false);
   };
 
-  // Fonction pour réinitialiser first_login (pour tests)
-  const resetFirstLogin = async (matricule: string) => {
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ first_login: true })
-        .eq('matricule', matricule);
-      
-      if (error) {
-        console.error('Reset error:', error);
-        alert('Erreur lors de la réinitialisation');
-      } else {
-        alert(`First_login réinitialisé pour ${matricule}`);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  // Page de changement de mot de passe
+  if (showPasswordChange) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 bg-black flex items-center justify-center">
+                <Pill className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <h1 className="text-xl font-light tracking-wider text-gray-900">MEDTRACK</h1>
+            <p className="text-xs text-gray-500 mt-1 tracking-wide">première connexion</p>
+          </div>
 
-  return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-            <div>
-                        <div className='text-red-500 text-center w-max w mx-auto flex items-center cypher text-700 '>
-                         System indisponible pour le moment
-                        </div>
-                      </div>
+          {/* Form */}
+          <div className="bg-white border border-gray-200 p-6">
+            {passwordSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 text-xs flex items-center gap-2">
+                <CheckCircle className="w-3 h-3 flex-shrink-0" />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            {!passwordSuccess && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-100 text-blue-700 text-xs">
+                Pour des raisons de sécurité, veuillez définir un nouveau mot de passe.
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordChange} className="space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-2 tracking-wide">
+                  NOUVEAU MOT DE PASSE
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 focus:border-black focus:outline-none pr-10 bg-white"
+                    placeholder="Minimum 4 caractères"
+                    required
+                    disabled={passwordChangeLoading }
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                    disabled={passwordChangeLoading || !!passwordSuccess}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+                {newPassword.length > 0 && newPassword.length < 4 && (
+                  <p className="text-xs text-amber-600 mt-1">Le mot de passe doit contenir au moins 4 caractères</p>
+                )}
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={passwordChangeLoading }
+                  className="w-full bg-black text-white py-2.5 text-xs font-medium tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {passwordChangeLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      MISE À JOUR...
+                    </span>
+                  ) : (
+                    'ENREGISTRER LE MOT DE PASSE'
+                  )}
+                </button>
+
+                {!passwordSuccess && (
+                  <button
+                    type="button"
+                    onClick={backToLogin}
+                    disabled={passwordChangeLoading}
+                    className="w-full text-xs text-gray-500 py-2 hover:text-black transition-colors disabled:opacity-50"
+                  >
+                    ← Retour à la connexion
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
         </div>
-        <div className="cypher mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded shadow">
-  <h2 className="text-lg font-semibold text-yellow-700 mb-2">📌 Informations sur la moyenne</h2>
-  <p className="text-gray-800 leading-relaxed">
-    La moyenne vous sera envoyée par la coordination. 
-    <br />
-    <span className="font-bold">Moyenne finale :</span> sur 10 
-    <br />
-    <span className="font-bold">Totalité des cotes de TD :</span> sur 3 
-    <br />
-    <span className="font-bold">Exposé :</span> sur 3 
-    <br />
-    <span className="font-bold">Interrogation :</span> sur 4 
-    <br />
-    <span className="text-red-600 font-semibold"></span>
-  </p>
-</div>
+      </div>
+    );
+  }
 
-     
+  // Page de login principale
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 flex items-center justify-center">
+              <img src='/logo.png' className='object-contain w-full h-full' alt="MedTrack Logo" />
+            </div>
+          </div>
+          <h1 className="text-xl font-light tracking-wider text-gray-900">MEDTRACK</h1>
+          <p className="text-xs text-gray-500 mt-1 tracking-wide">traçabilité pharmaceutique</p>
+        </div>
 
-      
+        {/* Login Form */}
+        <div className="bg-white border border-gray-200 p-6">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
+              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label htmlFor="matricule" className="block text-xs font-medium text-gray-500 mb-2 tracking-wide">
+                MATRICULE
+              </label>
+              <input
+                id="matricule"
+                type="text"
+                value={matricule}
+                onChange={(e) => setMatricule(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 text-sm border border-gray-200 focus:border-black focus:outline-none bg-white"
+                placeholder="Ex: ADM001"
+                required
+                disabled={loading}
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-medium text-gray-500 mb-2 tracking-wide">
+                MOT DE PASSE
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 focus:border-black focus:outline-none pr-10 bg-white"
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-black text-white py-2.5 text-xs font-medium tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  CONNEXION...
+                </span>
+              ) : (
+                'SE CONNECTER'
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <p className="text-center text-xs text-gray-400">
+              For <span className='text-green-600 font-medium'>PrincePharma</span> v1.0 · Sécurisé
+            </p>
+          </div>
+        </div>
+
+        {/* Comptes de test */}
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-400">
+            Tests: ADM001 / PHA001 / FAB001 / DIS001
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            MDP: admin123 / pharma123 / fab123 / dist123
+          </p>
+        </div>
       </div>
     </div>
   );

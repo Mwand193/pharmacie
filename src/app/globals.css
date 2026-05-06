@@ -3,11 +3,11 @@
 @tailwind utilities; 
 @font-face { 
   font-family: ubuntu;
-  src: url(/google.ttf);
+  src: url(/geistmono.ttf);
 }     
 @font-face {
   font-family: serifo;
-  src: url(/inter.ttf);
+  src: url(/geistmono.ttf);
 
 } 
 @font-face {
@@ -148,15 +148,7 @@
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-  font-family: 'cypher', monospace;
-
+ 
   margin: 0;
   padding: 0;
 }
