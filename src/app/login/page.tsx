@@ -52,16 +52,16 @@ export default function LoginPage() {
       // Redirection selon le rôle
       switch(storedUser.role) {
         case 'admin':
-          router.push('/dashboard/admin');
+          router.push('/dashboard');
           break;
         case 'pharmacie':
-          router.push('/dashboard/pharmacie');
+          router.push('/dashboard');
           break;
         case 'fabricant':
-          router.push('/dashboard/fabricant');
+          router.push('/dashboard');
           break;
         case 'distributeur':
-          router.push('/dashboard/distributeur');
+          router.push('/dashboard');
           break;
         default:
           setError('Rôle utilisateur non reconnu');
@@ -117,16 +117,16 @@ export default function LoginPage() {
         // Redirection selon le rôle après changement de mot de passe
         switch(updatedUser.role) {
           case 'admin':
-            router.push('/dashboard/admin');
+            router.push('/dashboard');
             break;
           case 'pharmacie':
-            router.push('/dashboard/pharmacie');
+            router.push('/dashboard');
             break;
           case 'fabricant':
-            router.push('/dashboard/fabricant');
+            router.push('/dashboard');
             break;
           case 'distributeur':
-            router.push('/dashboard/distributeur');
+            router.push('/dashboard');
             break;
           default:
             router.push('/login');

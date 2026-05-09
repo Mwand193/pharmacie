@@ -406,6 +406,82 @@ console.log('   Commentaire utilisé:', commentaire);
 
 
 
+
+// export async function getLots() {
+//   const supabase = await createClient();
+  
+//   const { data, error } = await supabase
+//     .from('lots')
+//     .select(`
+//       *,
+//       medicament:medicament_id (*)
+//     `)
+//     .order('created_at', { ascending: false });
+
+//   if (error) throw error;
+  
+//   const lotsWithStats = await Promise.all(data.map(async (lot) => {
+//     // Récupérer TOUS les mouvements
+//     const { data: mouvements } = await supabase
+//       .from('mouvements')
+//       .select('*')
+//       .eq('lot_id', lot.id);
+    
+//     const totalMovements = mouvements?.length || 0;
+    
+//     // Filtrer les mouvements de transfert ET retrait défectueux
+//     const mouvementsConsommation = mouvements?.filter(m => 
+//       ['transfert', 'transfert_pharmacie', 'transfert_distributeur', 'retrait_defectueux', 'vente_pharmacie', 'vente_patient'].includes(m.type_mouvement)
+//     ) || [];
+    
+//     // Calculer la quantité consommée (transférée + retirée)
+//     const quantiteConsommee = mouvementsConsommation.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    
+//     // Calculer la quantité restante
+//     const quantiteRestante = lot.quantite_totale - quantiteConsommee;
+    
+//     const hasConsommation = mouvementsConsommation.length > 0;
+//     const isDeletable = totalMovements <= 1 && mouvementsConsommation.length === 0;
+    
+//     // Vérifier s'il y a des retraits défectueux spécifiquement
+//     const retraitsDefectueux = mouvements?.filter(m => 
+//       m.type_mouvement === 'retrait_defectueux'
+//     ) || [];
+    
+//     const quantiteRetiree = retraitsDefectueux.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    
+//     // Déterminer le statut
+//     let statut = 'disponible';
+//     if (new Date(lot.date_expiration) < new Date()) {
+//       statut = 'expire';
+//     } else if (quantiteRestante === 0) {
+//       statut = 'epuise';
+//     } else if (hasConsommation) {
+//       statut = 'partiel';
+//     }
+    
+//     return {
+//       ...lot,
+//       quantite_transferee: quantiteConsommee, // Total consommé (transferts + retraits)
+//       quantite_restante: quantiteRestante,
+//       quantite_retiree: quantiteRetiree, // Spécifiquement les retraits
+//       nombre_retraits: retraitsDefectueux.length, // Nombre de retraits
+//       statut,
+//       hasMovements: totalMovements > 1,
+//       isDeletable,
+//       // Détail des mouvements si nécessaire
+//       mouvementsDetail: {
+//         total: totalMovements,
+//         retraits: retraitsDefectueux.length,
+//         transferts: mouvementsConsommation.filter(m => m.type_mouvement !== 'retrait_defectueux').length
+//       }
+//     };
+//   }));
+  
+//   return lotsWithStats;
+// }
+
+
 // app/lots/actions.ts - Fonction getLots modifiée
 
 export async function getLots() {
@@ -430,51 +506,63 @@ export async function getLots() {
     
     const totalMovements = mouvements?.length || 0;
     
-    // Filtrer les mouvements de transfert ET retrait défectueux
-    const mouvementsConsommation = mouvements?.filter(m => 
-      ['transfert', 'transfert_pharmacie', 'transfert_distributeur', 'retrait_defectueux', 'vente_pharmacie', 'vente_patient'].includes(m.type_mouvement)
+    // Catégoriser les mouvements
+    const mouvementsTransfert = mouvements?.filter(m => 
+      ['transfert', 'transfert_pharmacie', 'transfert_distributeur'].includes(m.type_mouvement)
     ) || [];
     
-    // Calculer la quantité consommée (transférée + retirée)
-    const quantiteConsommee = mouvementsConsommation.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    const mouvementsDistribution = mouvements?.filter(m => 
+      ['distribution', 'vente_pharmacie'].includes(m.type_mouvement)
+    ) || [];
     
-    // Calculer la quantité restante
-    const quantiteRestante = lot.quantite_totale - quantiteConsommee;
-    
-    const hasConsommation = mouvementsConsommation.length > 0;
-    const isDeletable = totalMovements <= 1 && mouvementsConsommation.length === 0;
-    
-    // Vérifier s'il y a des retraits défectueux spécifiquement
-    const retraitsDefectueux = mouvements?.filter(m => 
+    const mouvementsRetrait = mouvements?.filter(m => 
       m.type_mouvement === 'retrait_defectueux'
     ) || [];
     
-    const quantiteRetiree = retraitsDefectueux.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    // Calculer les quantités par type
+    const quantiteTransfert = mouvementsTransfert.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    const quantiteDistribution = mouvementsDistribution.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    const quantiteRetiree = mouvementsRetrait.reduce((sum, m) => sum + (m.quantite || 0), 0);
+    
+    // Quantité totale consommée
+    const quantiteConsommee = quantiteTransfert + quantiteDistribution + quantiteRetiree;
+    
+    // Quantité restante
+    const quantiteRestante = lot.quantite_totale - quantiteConsommee;
+    
+    // Vérifier si le lot est supprimable
+    const mouvementsSansCreation = mouvements?.filter(m => 
+      m.type_mouvement !== 'creation_lot'
+    ) || [];
+    
+    const isDeletable = mouvementsSansCreation.length === 0;
     
     // Déterminer le statut
     let statut = 'disponible';
     if (new Date(lot.date_expiration) < new Date()) {
       statut = 'expire';
-    } else if (quantiteRestante === 0) {
+    } else if (quantiteRestante <= 0) {
       statut = 'epuise';
-    } else if (hasConsommation) {
+    } else if (quantiteConsommee > 0) {
       statut = 'partiel';
     }
     
     return {
       ...lot,
-      quantite_transferee: quantiteConsommee, // Total consommé (transferts + retraits)
+      quantite_transferee: quantiteTransfert,
+      quantite_distribuee: quantiteDistribution,
+      quantite_retiree: quantiteRetiree,
       quantite_restante: quantiteRestante,
-      quantite_retiree: quantiteRetiree, // Spécifiquement les retraits
-      nombre_retraits: retraitsDefectueux.length, // Nombre de retraits
+      nombre_retraits: mouvementsRetrait.length,
+      nombre_distributions: mouvementsDistribution.length,
       statut,
       hasMovements: totalMovements > 1,
       isDeletable,
-      // Détail des mouvements si nécessaire
       mouvementsDetail: {
         total: totalMovements,
-        retraits: retraitsDefectueux.length,
-        transferts: mouvementsConsommation.filter(m => m.type_mouvement !== 'retrait_defectueux').length
+        retraits: mouvementsRetrait.length,
+        transferts: mouvementsTransfert.length,
+        distributions: mouvementsDistribution.length,
       }
     };
   }));

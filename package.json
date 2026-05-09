@@ -25,6 +25,7 @@
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.5.1",
+    "child_process": "^1.0.2",
     "critters": "^0.0.23",
     "crypto": "^1.0.1",
     "crypto-js": "^4.2.0",
@@ -50,6 +51,7 @@
     "reactflow": "^11.11.4",
     "recharts": "^3.1.0",
     "solc": "^0.8.19",
+    "util": "^0.12.5",
     "uuid": "^11.1.0",
     "web3": "^4.16.0",
     "xlsx": "^0.18.5"
