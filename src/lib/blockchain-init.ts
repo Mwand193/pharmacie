@@ -1,6 +1,6 @@
 // lib/blockchain-init.ts
 import { blockchainService } from './blockchain';
-import contractData from '../../build/DrugTraceability.json';
+import contractData from '../../Danseur/DrugTraceability.json';
 
 let isContractInitialized = false;
 
