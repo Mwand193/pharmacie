@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       ],
     },
   ],
+   allowedDevOrigins: [
+    '192.168.208.1',
+    '127.0.0.1',
+     '192.168.*.*',
+      '*.trycloudflare.com',
+            // Your specific network IP
+    '*.local-origin.dev'    // Optional: if you have custom local domains
+  ],
   experimental: {
     serverActions:{
  bodySizeLimit: '5mb',

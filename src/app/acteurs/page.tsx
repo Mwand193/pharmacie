@@ -22,9 +22,24 @@ import {
   FaVenus,
   FaExclamationTriangle,
   FaCalendarAlt,
-  FaKey
+  FaKey,
+  FaEthereum,
+  FaShieldAlt,
+  FaSync,
+  FaCopy,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaWallet,
+  FaCoins
 } from 'react-icons/fa';
-import { Edit, Edit2, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
+import { 
+  assignEthereumAddress, 
+  verifyAddressIntegrity, 
+  assignAllMissingAddresses 
+} from './actions';
+
+
 
 type User = {
   id: number;
@@ -34,9 +49,13 @@ type User = {
   role: 'admin' | 'pharmacie' | 'fabricant' | 'distributeur';
   first_login: boolean;
   genre: 'M' | 'F' | null;
-  nom_entite?: string;
+  nom_entite: string;
+  ethereum_address?: string;
+  ethereum_address_hash?: string;
+  ganache_account_index?: number;
   created_at: string;
   updated_at: string;
+
 };
 
 const ROLES = {
@@ -73,13 +92,102 @@ export default function ActeursPage() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   // Filtres
   const [searchTerm, setSearchTerm] = useState('');
   const [filtreRole, setFiltreRole] = useState<string>('tous');
   const [filtreGenre, setFiltreGenre] = useState<string>('tous');
   const [filtreFirstLogin, setFiltreFirstLogin] = useState<string>('tous');
+  const [filtreBlockchain, setFiltreBlockchain] = useState<string>('tous');
+  // app/admin/acteurs/page.tsx
+
+// 1. Ajoutez cet état avec les autres états
+const [reassigningAll, setReassigningAll] = useState(false);
+
+// 2. Ajoutez cette fonction avec les autres fonctions
+const handleReassignAllAddresses = async () => {
+  if (!confirm('⚠️ ATTENTION : Cette action va supprimer TOUTES les adresses blockchain existantes et en créer de nouvelles pour TOUS les utilisateurs. Les transactions liées aux anciennes adresses ne seront plus accessibles. Cette action est IRRÉVERSIBLE. Continuer ?')) {
+    return;
+  }
   
+  // Double confirmation pour une action aussi sensible
+  if (!confirm('❗ CONFIRMATION FINALE : Voulez-vous vraiment réassigner toutes les adresses blockchain ?')) {
+    return;
+  }
+  
+  setReassigningAll(true);
+  setError(null);
+  setSuccess(null);
+  
+  try {
+    // Étape 1 : Récupérer tous les utilisateurs qui ont une adresse
+    const { data: usersWithAddress, error: fetchError } = await supabase
+      .from('users')
+      .select('id, username, ethereum_address')
+      .not('ethereum_address', 'is', null);
+
+    if (fetchError) throw fetchError;
+
+    if (!usersWithAddress || usersWithAddress.length === 0) {
+      setSuccess('ℹ️ Aucun utilisateur avec adresse blockchain à réassigner');
+      return;
+    }
+
+    // Étape 2 : Supprimer toutes les anciennes adresses
+    const { error: resetError } = await supabase
+      .from('users')
+      .update({
+        ethereum_address: null,
+        ethereum_address_hash: null,
+        ganache_account_index: null,
+        updated_at: new Date().toISOString()
+      })
+      .not('ethereum_address', 'is', null);
+
+    if (resetError) throw resetError;
+
+    // Étape 3 : Assigner de nouvelles adresses à tous les utilisateurs
+    let assignedCount = 0;
+    const errors: string[] = [];
+    const results: string[] = [];
+
+    for (const user of usersWithAddress) {
+      try {
+        const result = await assignEthereumAddress(user.id);
+        if (result.success) {
+          assignedCount++;
+          results.push(`${user.username}: ✅`);
+        } else {
+          errors.push(`${user.username}: ${result.error}`);
+        }
+      } catch (error: any) {
+        errors.push(`${user.username}: ${error.message}`);
+      }
+    }
+
+    // Étape 4 : Message de résultat
+    if (errors.length === 0) {
+      setSuccess(`✅ ${assignedCount}/${usersWithAddress.length} adresses réassignées avec succès !`);
+    } else {
+      setError(
+        `⚠️ ${assignedCount}/${usersWithAddress.length} réassignées. Erreurs:\n${errors.join('\n')}`
+      );
+    }
+
+    await chargerUtilisateurs();
+  } catch (error: any) {
+    setError(error.message || 'Erreur lors de la réassignation en masse');
+  } finally {
+    setReassigningAll(false);
+  }
+};
+
+// 3. Dans le JSX, ajoutez ce bouton à côté du bouton "Assigner tous les comptes"
+// Remplacez cette section :
+
+
+
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -89,9 +197,15 @@ export default function ActeursPage() {
     password: '',
     role: 'distributeur' as User['role'],
     genre: '' as 'M' | 'F' | '',
+    nom_entite: '',
   });
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  
+  // Blockchain
+  const [assigningAddress, setAssigningAddress] = useState<number | null>(null);
+  const [assigningAll, setAssigningAll] = useState(false);
+  const [verifyingAddress, setVerifyingAddress] = useState<number | null>(null);
   
   // Stats
   const [stats, setStats] = useState({
@@ -103,6 +217,8 @@ export default function ActeursPage() {
     firstLogin: 0,
     hommes: 0,
     femmes: 0,
+    withBlockchain: 0,
+    withoutBlockchain: 0,
   });
 
   useEffect(() => {
@@ -113,7 +229,7 @@ export default function ActeursPage() {
 
   useEffect(() => {
     filtrerUtilisateurs();
-  }, [users, searchTerm, filtreRole, filtreGenre, filtreFirstLogin]);
+  }, [users, searchTerm, filtreRole, filtreGenre, filtreFirstLogin, filtreBlockchain]);
 
   const chargerUtilisateurs = async () => {
     try {
@@ -145,37 +261,42 @@ export default function ActeursPage() {
       firstLogin: usersData.filter(u => u.first_login).length,
       hommes: usersData.filter(u => u.genre === 'M').length,
       femmes: usersData.filter(u => u.genre === 'F').length,
+      withBlockchain: usersData.filter(u => u.ethereum_address).length,
+      withoutBlockchain: usersData.filter(u => !u.ethereum_address).length,
     });
   };
 
   const filtrerUtilisateurs = () => {
     let filtered = [...users];
 
-    // Recherche textuelle
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(u => 
         u.matricule?.toLowerCase().includes(term) ||
         u.username?.toLowerCase().includes(term) ||
-        (u.nom_entite && u.nom_entite.toLowerCase().includes(term))
+        (u.nom_entite && u.nom_entite.toLowerCase().includes(term)) ||
+        u.ethereum_address?.toLowerCase().includes(term)
       );
     }
 
-    // Filtre par rôle
     if (filtreRole !== 'tous') {
       filtered = filtered.filter(u => u.role === filtreRole);
     }
 
-    // Filtre par genre
     if (filtreGenre !== 'tous') {
       filtered = filtered.filter(u => u.genre === filtreGenre);
     }
 
-    // Filtre première connexion
     if (filtreFirstLogin === 'oui') {
       filtered = filtered.filter(u => u.first_login);
     } else if (filtreFirstLogin === 'non') {
       filtered = filtered.filter(u => !u.first_login);
+    }
+
+    if (filtreBlockchain === 'avec') {
+      filtered = filtered.filter(u => u.ethereum_address);
+    } else if (filtreBlockchain === 'sans') {
+      filtered = filtered.filter(u => !u.ethereum_address);
     }
 
     setFilteredUsers(filtered);
@@ -189,6 +310,7 @@ export default function ActeursPage() {
       password: '',
       role: 'distributeur',
       genre: '',
+      nom_entite: '',
     });
     setShowModal(true);
   };
@@ -201,72 +323,74 @@ export default function ActeursPage() {
       password: '',
       role: user.role,
       genre: user.genre || '',
+       nom_entite: user.nom_entite || '', 
     });
     setShowModal(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.matricule || !formData.username || !formData.role) {
-      setError('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
+ const handleSave = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // ✅ Ajouter nom_entite dans la validation
+  if (!formData.matricule || !formData.username || !formData.role || !formData.nom_entite) {
+    setError('Veuillez remplir tous les champs obligatoires (matricule, nom, entité et rôle)');
+    return;
+  }
 
-    if (!editingUser && !formData.password) {
-      setError('Le mot de passe est obligatoire pour un nouvel utilisateur');
-      return;
-    }
+  if (!editingUser && !formData.password) {
+    setError('Le mot de passe est obligatoire pour un nouvel utilisateur');
+    return;
+  }
 
-    setSaving(true);
-    setError(null);
+  setSaving(true);
+  setError(null);
 
-    try {
-      if (editingUser) {
-        // Mise à jour
-        const updateData: any = {
-          matricule: formData.matricule,
-          username: formData.username,
-          role: formData.role,
-          genre: formData.genre || null,
-          updated_at: new Date().toISOString(),
-        };
+  try {
+    if (editingUser) {
+      const updateData: any = {
+        matricule: formData.matricule,
+        username: formData.username,
+        role: formData.role,
+        genre: formData.genre || null,
+        nom_entite: formData.nom_entite, // ← AJOUTÉ
+        updated_at: new Date().toISOString(),
+      };
 
-        if (formData.password) {
-          updateData.password = formData.password;
-        }
-
-        const { error } = await supabase
-          .from('users')
-          .update(updateData)
-          .eq('id', editingUser.id);
-
-        if (error) throw error;
-      } else {
-        // Création
-        const { error } = await supabase
-          .from('users')
-          .insert([{
-            matricule: formData.matricule,
-            username: formData.username,
-            password: formData.password,
-            role: formData.role,
-            genre: formData.genre || null,
-            first_login: true,
-          }]);
-
-        if (error) throw error;
+      if (formData.password) {
+        updateData.password = formData.password;
       }
 
-      setShowModal(false);
-      await chargerUtilisateurs();
-    } catch (err: any) {
-      console.error('Erreur sauvegarde:', err);
-      setError(err.message || 'Erreur lors de la sauvegarde');
-    } finally {
-      setSaving(false);
+      const { error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('users')
+        .insert([{
+          matricule: formData.matricule,
+          username: formData.username,
+          password: formData.password,
+          role: formData.role,
+          genre: formData.genre || null,
+          nom_entite: formData.nom_entite, // ← AJOUTÉ
+          first_login: true,
+        }]);
+
+      if (error) throw error;
     }
-  };
+
+    setShowModal(false);
+    await chargerUtilisateurs();
+  } catch (err: any) {
+    console.error('Erreur sauvegarde:', err);
+    setError(err.message || 'Erreur lors de la sauvegarde');
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleDelete = async (userId: number) => {
     try {
@@ -285,6 +409,100 @@ export default function ActeursPage() {
     }
   };
 
+// Remplace la fonction handleAssignEthereum par celle-ci :
+
+const handleAssignEthereum = async (userId: number) => {
+  setAssigningAddress(userId);
+  setError(null);
+  setSuccess(null);
+  
+  try {
+    const result = await assignEthereumAddress(userId);
+    
+    if (result.success && result.data) {
+      // ✅ On vérifie que result.data existe
+      const address = result.data.ethereum_address;
+      setSuccess(`✅ Adresse assignée : ${address.substring(0, 10)}...`);
+      await chargerUtilisateurs();
+    } else if (result.success && !result.data) {
+      // Succès mais pas de données (ne devrait pas arriver)
+      setSuccess('✅ Adresse assignée avec succès');
+      await chargerUtilisateurs();
+    } else {
+      setError(result.error || 'Erreur assignation');
+    }
+  } catch (error: any) {
+    setError(error.message || 'Erreur lors de l\'assignation');
+  } finally {
+    setAssigningAddress(null);
+  }
+};
+
+  // Fonction pour assigner des adresses à TOUS les utilisateurs
+  const handleAssignAllAddresses = async () => {
+    setAssigningAll(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      // Appel DIRECT de la Server Action
+      const result = await assignAllMissingAddresses();
+      
+      if (result.success) {
+        setSuccess(`✅ ${result.count} adresse(s) assignée(s) avec succès !`);
+        await chargerUtilisateurs(); // Recharge la liste
+      } else {
+        setError(result.error || 'Erreur assignation en masse');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Erreur lors de l\'assignation en masse');
+    } finally {
+      setAssigningAll(false);
+    }
+  };
+
+  // Fonction pour vérifier l'intégrité d'une adresse
+  const handleVerifyIntegrity = async (userId: number) => {
+    setVerifyingAddress(userId);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      // Appel DIRECT de la Server Action
+      const result = await verifyAddressIntegrity(userId);
+      
+      if (result.success) {
+        if (result.isValid) {
+          setSuccess('✅ Adresse vérifiée : INTÈGRE');
+        } else {
+          setError('❌ Adresse CORROMPUE ! Le hash ne correspond pas.');
+        }
+      } else {
+        setError(result.error || 'Erreur vérification');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Erreur lors de la vérification');
+    } finally {
+      setVerifyingAddress(null);
+      // Efface le message après 5 secondes
+      setTimeout(() => {
+        setSuccess(null);
+        setError(null);
+      }, 5000);
+    }
+  };
+
+
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setSuccess('✅ Adresse copiée dans le presse-papier');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      setError('Erreur lors de la copie');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -295,7 +513,6 @@ export default function ActeursPage() {
     });
   };
 
-  // Vérifier l'accès admin
   if (user?.role !== 'admin') {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -313,27 +530,74 @@ export default function ActeursPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* En-tête */}
-      <div className="sm:flex sm:items-center sm:justify-between mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 flex items-center">
             <FaUsers className="mr-3 h-6 w-6 text-blue-600" />
             Gestion des acteurs
           </h1>
           <p className="mt-2 text-sm text-gray-700">
-            Gérez les utilisateurs du système : administrateurs, pharmacies, fabricants et distributeurs
+            Gérez les utilisateurs du système et leurs comptes blockchain
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="mt-4 sm:mt-0 inline-flex items-center -md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors"
-        >
-          <FaPlus className="mr-2 h-4 w-4" />
-          Ajouter un acteur
-        </button>
+      <div className="sm:flex mt-4 sm:items-center sm:justify-between mb-8">
+     
+<div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 mt-4 sm:mt-0">
+  <div className="flex space-x-2">
+    {/* Bouton assigner toutes les adresses */}
+    <button
+      onClick={handleAssignAllAddresses}
+      disabled={assigningAll || reassigningAll}
+      className="inline-flex items-center -md bg-purple-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-purple-700 transition-colors disabled:opacity-50"
+      title="Assigner des adresses aux utilisateurs qui n'en ont pas"
+    >
+      {assigningAll ? (
+        <>
+          <FaSync className="mr-2 h-4 w-4 animate-spin" />
+          Assignation...
+        </>
+      ) : (
+        <>
+          <FaEthereum className="mr-2 h-4 w-4" />
+          Assigner nouveaux comptes
+        </>
+      )}
+    </button>
+    
+    {/* ✅ NOUVEAU BOUTON RÉASSIGNER TOUS */}
+    <button
+      onClick={handleReassignAllAddresses}
+      disabled={assigningAll || reassigningAll}
+      className="inline-flex items-center -md bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-orange-700 transition-colors disabled:opacity-50"
+      title="Supprimer toutes les adresses existantes et en créer de nouvelles"
+    >
+      {reassigningAll ? (
+        <>
+          <FaSync className="mr-2 h-4 w-4 animate-spin" />
+          Réassignation...
+        </>
+      ) : (
+        <>
+          <FaSync className="mr-2 h-4 w-4" />
+          Réassigner tous les comptes
+        </>
+      )}
+    </button>
+  </div>
+  
+  {/* Bouton ajouter un acteur */}
+  <button
+    onClick={handleAdd}
+    disabled={assigningAll || reassigningAll}
+    className="inline-flex items-center -md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+  >
+    <FaPlus className="mr-2 h-4 w-4" />
+    Ajouter un acteur
+  </button>
+</div>
       </div>
 
       {/* Stats rapides */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-5">
         {Object.entries(ROLES).map(([key, role]) => {
           const Icon = role.icon;
           const count = stats[key as keyof typeof stats] || 0;
@@ -351,12 +615,49 @@ export default function ActeursPage() {
             </div>
           );
         })}
+        
+        {/* Stats Blockchain */}
+        <div className="-lg bg-white p-4 shadow-sm border border-purple-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 -full p-2 bg-purple-100">
+              <FaEthereum className="h-5 w-5 text-purple-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Avec Blockchain</p>
+              <p className="text-xl font-semibold text-gray-900">{stats.withBlockchain}/{stats.total}</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Messages */}
+      {error && (
+        <div className="mb-6 -md bg-red-50 p-4">
+          <div className="flex">
+            <FaTimesCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
+            <p className="ml-3 text-sm text-red-700">{error}</p>
+            <button onClick={() => setError(null)} className="ml-auto">
+              <FaTimes className="h-4 w-4 text-red-500" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="mb-6 -md bg-green-50 p-4">
+          <div className="flex">
+            <FaCheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+            <p className="ml-3 text-sm text-green-700">{success}</p>
+            <button onClick={() => setSuccess(null)} className="ml-auto">
+              <FaTimes className="h-4 w-4 text-green-500" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filtres */}
       <div className="mb-6 bg-white -lg shadow-sm border border-gray-200 p-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Recherche */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -368,7 +669,6 @@ export default function ActeursPage() {
             />
           </div>
 
-          {/* Filtre rôle */}
           <div>
             <select
               value={filtreRole}
@@ -383,7 +683,6 @@ export default function ActeursPage() {
             </select>
           </div>
 
-          {/* Filtre genre */}
           <div>
             <select
               value={filtreGenre}
@@ -396,7 +695,6 @@ export default function ActeursPage() {
             </select>
           </div>
 
-          {/* Filtre première connexion */}
           <div>
             <select
               value={filtreFirstLogin}
@@ -408,20 +706,32 @@ export default function ActeursPage() {
               <option value="non">Déjà connecté</option>
             </select>
           </div>
+
+          <div>
+            <select
+              value={filtreBlockchain}
+              onChange={(e) => setFiltreBlockchain(e.target.value)}
+              className="block w-full -md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="tous">Tous (Blockchain)</option>
+              <option value="avec">Avec adresse ETH</option>
+              <option value="sans">Sans adresse ETH</option>
+            </select>
+          </div>
         </div>
 
-        {/* Résultats */}
         <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
           <span>
             {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} trouvé{filteredUsers.length > 1 ? 's' : ''}
           </span>
-          {(searchTerm || filtreRole !== 'tous' || filtreGenre !== 'tous' || filtreFirstLogin !== 'tous') && (
+          {(searchTerm || filtreRole !== 'tous' || filtreGenre !== 'tous' || filtreFirstLogin !== 'tous' || filtreBlockchain !== 'tous') && (
             <button
               onClick={() => {
                 setSearchTerm('');
                 setFiltreRole('tous');
                 setFiltreGenre('tous');
                 setFiltreFirstLogin('tous');
+                setFiltreBlockchain('tous');
               }}
               className="text-blue-600 hover:text-blue-800 flex items-center"
             >
@@ -431,19 +741,6 @@ export default function ActeursPage() {
           )}
         </div>
       </div>
-
-      {/* Message d'erreur */}
-      {error && (
-        <div className="mb-6 -md bg-red-50 p-4">
-          <div className="flex">
-            <FaExclamationTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
-            <p className="ml-3 text-sm text-red-700">{error}</p>
-            <button onClick={() => setError(null)} className="ml-auto">
-              <FaTimes className="h-4 w-4 text-red-500" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Tableau */}
       <div className="bg-white -lg shadow-sm border border-gray-200 overflow-hidden">
@@ -474,11 +771,9 @@ export default function ActeursPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rôle
                   </th>
+                  
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Genre
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Statut
+                    🔗 Blockchain
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date création
@@ -533,35 +828,83 @@ export default function ActeursPage() {
                           {ROLES[utilisateur.role]?.label}
                         </span>
                       </td>
+                     
+                      
+                      {/* 🔗 COLONNE BLOCKCHAIN */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {utilisateur.genre ? (
-                          <span className={`inline-flex items-center text-sm ${
-                            utilisateur.genre === 'M' ? 'text-blue-600' : 'text-pink-600'
-                          }`}>
-                            {utilisateur.genre === 'M' ? (
-                              <FaMars className="mr-1 h-4 w-4" />
-                            ) : (
-                              <FaVenus className="mr-1 h-4 w-4" />
+                        {utilisateur.ethereum_address ? (
+                          <div className="space-y-2">
+                            {/* Adresse avec icône copier */}
+                            <div className="flex items-center space-x-2">
+                              <FaEthereum className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                              <div className="flex items-center space-x-1">
+                                <span 
+                                  className="font-mono text-sm text-gray-900 cursor-pointer hover:text-purple-600"
+                                  title={utilisateur.ethereum_address}
+                                >
+                                  {utilisateur.ethereum_address.substring(0, 8)}...
+                                  {utilisateur.ethereum_address.substring(38)}
+                                </span>
+                                <button
+                                  onClick={() => handleCopyAddress(utilisateur.ethereum_address!)}
+                                  className="text-gray-400 hover:text-purple-600 p-1"
+                                  title="Copier l'adresse complète"
+                                >
+                                  <FaCopy className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* Index Ganache */}
+                            {utilisateur.ganache_account_index !== null && utilisateur.ganache_account_index !== undefined && (
+                              <div className="flex items-center text-xs text-gray-500">
+                                <FaWallet className="mr-1 h-3 w-3" />
+                                <span>Ganache #{utilisateur.ganache_account_index}</span>
+                              </div>
                             )}
-                            {utilisateur.genre === 'M' ? 'Homme' : 'Femme'}
-                          </span>
+                            
+                            {/* Hash (tronqué) */}
+                            {utilisateur.ethereum_address_hash && (
+                              <div className="text-xs text-gray-400 font-mono">
+                                Hash: {utilisateur.ethereum_address_hash.substring(0, 12)}...
+                              </div>
+                            )}
+                            
+                            {/* Bouton vérification */}
+                            <button
+                              onClick={() => handleVerifyIntegrity(utilisateur.id)}
+                              disabled={verifyingAddress === utilisateur.id}
+                              className="inline-flex items-center text-xs text-green-600 hover:text-green-800 disabled:opacity-50"
+                            >
+                              {verifyingAddress === utilisateur.id ? (
+                                <FaSync className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <FaShieldAlt className="mr-1 h-3 w-3" />
+                              )}
+                              Vérifier intégrité
+                            </button>
+                          </div>
                         ) : (
-                          <span className="text-sm text-gray-400">-</span>
+                          <button
+                            onClick={() => handleAssignEthereum(utilisateur.id)}
+                            disabled={assigningAddress === utilisateur.id}
+                            className="inline-flex items-center -md bg-purple-100 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 transition-colors"
+                          >
+                            {assigningAddress === utilisateur.id ? (
+                              <>
+                                <FaSync className="mr-1 h-3 w-3 animate-spin" />
+                                Assignation...
+                              </>
+                            ) : (
+                              <>
+                                <FaEthereum className="mr-1 h-3 w-3" />
+                                Assigner compte ETH
+                              </>
+                            )}
+                          </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {utilisateur.first_login ? (
-                          <span className="inline-flex items-center -full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-                            <FaKey className="mr-1 h-3 w-3" />
-                            1ère connexion
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center -full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            <FaCheck className="mr-1 h-3 w-3" />
-                            Actif
-                          </span>
-                        )}
-                      </td>
+                      
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <FaCalendarAlt className="mr-1 h-3 w-3 text-gray-400" />
@@ -643,7 +986,20 @@ export default function ActeursPage() {
                 )}
 
                 <form onSubmit={handleSave} className="space-y-4">
-                  {/* Matricule */}
+                  {/* ✅ NOUVEAU CHAMP : Nom de l'entité */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Nom de l'entité *
+  </label>
+  <input
+    type="text"
+    value={formData.nom_entite}
+    onChange={(e) => setFormData({ ...formData, nom_entite: e.target.value })}
+    className="block w-full -md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5 border"
+    placeholder="Ex: PharmaPlus SA, Laboratoire XYZ..."
+    required
+  />
+</div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Matricule *
@@ -658,7 +1014,6 @@ export default function ActeursPage() {
                     />
                   </div>
 
-                  {/* Nom d'utilisateur */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nom d'utilisateur *
@@ -673,7 +1028,6 @@ export default function ActeursPage() {
                     />
                   </div>
 
-                  {/* Mot de passe */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Mot de passe {!editingUser && '*'}
@@ -693,7 +1047,6 @@ export default function ActeursPage() {
                     )}
                   </div>
 
-                  {/* Rôle */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Rôle *
@@ -711,7 +1064,6 @@ export default function ActeursPage() {
                     </select>
                   </div>
 
-                  {/* Genre */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Genre
@@ -761,7 +1113,6 @@ export default function ActeursPage() {
                     </div>
                   </div>
 
-                  {/* Boutons */}
                   <div className="flex space-x-3 pt-4">
                     <button
                       type="submit"

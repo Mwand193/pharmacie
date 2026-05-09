@@ -1,3 +1,5 @@
+
+
 // app/transfert-pharmacie/page.tsx
 'use client';
 
@@ -14,14 +16,15 @@ import {
   FaUserMd, 
   FaCheckCircle, 
   FaTimesCircle,
- 
   FaHistory,
   FaExclamationTriangle,
   FaTruck,
   FaWarehouse,
-  FaArrowRight
+  FaArrowRight,
+  FaEthereum
 } from 'react-icons/fa';
 import { Package } from 'lucide-react';
+
 type Etape = 'selection' | 'pharmacien' | 'verification' | 'succes' | 'erreur';
 
 export default function DistributionPharmaciePage() {
@@ -39,8 +42,9 @@ export default function DistributionPharmaciePage() {
   const [quantite, setQuantite] = useState(0);
   const [commentaire, setCommentaire] = useState('');
   
-  // Erreur
+  // Erreur / Succès
   const [erreurMessage, setErreurMessage] = useState('');
+  const [blockchainTxHash, setBlockchainTxHash] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -81,14 +85,31 @@ export default function DistributionPharmaciePage() {
     if (!lotSelectionne || !pharmacienSelectionne || quantite <= 0) return;
     
     setProcessing(true);
+    setErreurMessage('');
+    setBlockchainTxHash(null);
+    
     try {
       const resultat = await transfererVersPharmacie({
-        lot_id: lotSelectionne.lot_id,
-        pharmacien_id: pharmacienSelectionne.id,
+        lot_id: lotSelectionne.id,
+          destination_id: pharmacienSelectionne.id, 
         quantite: quantite,
         commentaire: commentaire,
-        currentUser: user as any
+        currentUser: {
+          id: user?.id || '',
+          matricule: user?.matricule || '',
+          username: user?.username || '',
+          role: user?.role || '',
+          first_login: user?.first_login || false,
+          nom_entite: user?.nom_entite || '',
+          ethereum_address: user?.ethereum_address,
+          ganache_account_index: user?.ganache_account_index,
+        }
       });
+      
+      // Si la blockchain a été utilisée, récupérer le hash
+      if (resultat.blockchain_transaction_hash) {
+        setBlockchainTxHash(resultat.blockchain_transaction_hash);
+      }
       
       setEtape('succes');
       await chargerDonnees();
@@ -106,6 +127,7 @@ export default function DistributionPharmaciePage() {
     setQuantite(0);
     setCommentaire('');
     setErreurMessage('');
+    setBlockchainTxHash(null);
     setEtape('selection');
   };
 
@@ -138,6 +160,12 @@ export default function DistributionPharmaciePage() {
           <FaWarehouse className="mr-2 h-4 w-4" />
           Distributeur: {user?.nom_entite}
         </div>
+        {user?.ethereum_address && (
+          <div className="mt-2 inline-flex items-center text-xs text-purple-600 font-mono">
+            <FaEthereum className="mr-1 h-3 w-3" />
+            {user.ethereum_address.substring(0, 10)}...{user.ethereum_address.substring(38)}
+          </div>
+        )}
       </div>
 
       {/* Stats rapides */}
@@ -410,10 +438,18 @@ export default function DistributionPharmaciePage() {
                       rows={2}
                       value={commentaire}
                       onChange={(e) => setCommentaire(e.target.value)}
-                      className="block w-full  border-b p-3  border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      className="block w-full border-b p-3 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                       placeholder="Ajouter un commentaire..."
                     />
                   </div>
+
+                  {/* Info blockchain */}
+                  {user?.ethereum_address && (
+                    <div className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
+                      <FaEthereum className="inline mr-1 h-3 w-3" />
+                      Transaction signée par: {user.ethereum_address.substring(0, 10)}...
+                    </div>
+                  )}
 
                   <div className="flex space-x-3 pt-4">
                     <button
@@ -455,6 +491,20 @@ export default function DistributionPharmaciePage() {
                 <p className="text-sm text-gray-400">
                   Lot: {lotSelectionne?.lot?.medicament?.nom}
                 </p>
+                
+                {/* Hash transaction blockchain */}
+                {blockchainTxHash && (
+                  <div className="mt-4 inline-flex flex-col items-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center text-sm text-purple-700 mb-1">
+                      <FaEthereum className="mr-2 h-4 w-4" />
+                      Transaction Blockchain
+                    </div>
+                    <p className="text-xs font-mono text-purple-800">
+                      {blockchainTxHash.substring(0, 30)}...
+                    </p>
+                  </div>
+                )}
+                
                 <button
                   onClick={reinitialiser}
                   className="mt-6 inline-flex items-center -md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -563,10 +613,18 @@ export default function DistributionPharmaciePage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6  py-4 whitespace-nowrap text-xs text-gray-500 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 font-mono">
                         <span title={transfert.hash_mouvement}>
                           {transfert.hash_mouvement?.substring(0, 16)}...
                         </span>
+                        {transfert.transaction_hash && (
+                          <div className="text-purple-500 mt-1">
+                            <FaEthereum className="inline mr-1 h-3 w-3" />
+                            <span title={transfert.transaction_hash}>
+                              {transfert.transaction_hash.substring(0, 10)}...
+                            </span>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))

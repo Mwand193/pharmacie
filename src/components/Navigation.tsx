@@ -1,13 +1,48 @@
 
 // 'use client';
 
-// import { FileBox, LogOut, User as UserIcon } from 'lucide-react';
+// import { FileBox, LogOut, Trash2, User as UserIcon } from 'lucide-react';
 // import Link from 'next/link';
 // import { usePathname, useRouter } from 'next/navigation';
-// import { FaPills, Package, FaExchangeAlt, FaUsers, FaHome, FaTruckMoving } from 'react-icons/fa';
+// import { FaPills, FaExchangeAlt, FaUsers, FaHome, FaTruckMoving, FaShieldAlt } from 'react-icons/fa';
 // import { FiBox } from 'react-icons/fi';
 // import { useAuth } from '@/context/AuthContext';
 // import { useState } from 'react';
+// import { Package } from 'lucide-react';
+// import { MdVerified, MdWarning } from 'react-icons/md';
+// // Définition des menus par rôle
+// const menuConfig = {
+//   admin: [
+//     { href: '/medicaments', label: 'Médicaments', icon: FaPills },
+//     { href: '/verify', label: '', icon: FaShieldAlt },
+//     { href: '/lots', label: 'Lots', icon: FiBox },
+//     { href: '/mouvements', label: 'Mouvements', icon: FaExchangeAlt },
+//     { href: '/acteurs', label: 'Acteurs', icon: FaUsers },
+//     { href: '/fournir-lot', label: 'Fournir', icon: FileBox },
+//     { href: '/reception', label: 'Réception', icon: FaTruckMoving },
+//   ],
+//   fabricant: [
+//     { href: '/verify', label: '', icon: FaShieldAlt },
+//     { href: '/medicaments', label: 'Médicaments', icon: FaPills },
+//     { href: '/lots', label: 'Lots', icon: FiBox },
+//     { href: '/mouvements', label: 'Mouvements', icon: FaExchangeAlt },
+//     { href: '/fournir-lot', label: 'Fournir un lot', icon: FileBox },
+//     { href: '/retirer-lot', label: 'Retirer un lot', icon: Trash2 },
+//   ],
+//   distributeur: [
+//     { href: '/verify', label: '', icon: FaShieldAlt },
+//     { href: '/reception', label: 'Réception', icon: FaTruckMoving },
+//     { href: '/transfert-pharmacie', label: 'Transfert vers pharmacie', icon: Package },
+//     { href: '/anomalies', label: 'Signaler une anomalie', icon: MdWarning },
+//     { href: '/verify', label: 'Verifier', icon:MdVerified },
+//   ],
+//   pharmacie: [
+//         { href: '/verify', label: '', icon: FaShieldAlt },
+//     { href: '/', label: 'Mes Lots', icon: Package },
+//     { href: '/verify', label: 'Verifier', icon:MdVerified },
+//     { href: '/mouvements', label: 'Historique', icon: FaExchangeAlt },
+//   ],
+// };
 
 // export default function Navigation() {
 //   const pathname = usePathname();
@@ -15,15 +50,13 @@
 //   const { user, isAuthenticated, logout } = useAuth();
 //   const [showUserMenu, setShowUserMenu] = useState(false);
 
-//   const navItems = [
-//     { href: '/', label: 'Accueil', icon: FaHome },
-//     { href: '/medicaments', label: 'Médicaments', icon: FaPills },
-//     { href: '/lots', label: 'Lots', icon: FiBox },
-//     { href: '/mouvements', label: 'Mouvements', icon: FaExchangeAlt },
-//     { href: '/acteurs', label: 'Acteurs', icon: FaUsers },
-//     { href: '/fournir-lot', label: 'Fournir un lot', icon: FileBox },
-//     { href: '/reception', label: 'Réception', icon: FaTruckMoving },
-//   ];
+//   // Obtenir les items de navigation selon le rôle
+//   const getNavItems = () => {
+//     if (!user) return menuConfig.admin; // Fallback pour la page login
+//     return menuConfig[user.role as keyof typeof menuConfig] || menuConfig.admin;
+//   };
+
+//   const navItems = getNavItems();
 
 //   const handleLogout = () => {
 //     logout();
@@ -52,6 +85,8 @@
 //                 Pharma<span className="text-green-700">Trace</span>
 //               </span>
 //             </div>
+            
+//             {/* Navigation principale basée sur le rôle */}
 //             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
 //               {navItems.map((item) => {
 //                 const Icon = item.icon;
@@ -62,7 +97,7 @@
 //                     href={item.href}
 //                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
 //                       isActive
-//                         ? 'border-green-500 text-gray-900'
+//                         ? 'border-green-500 text-green-700'
 //                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
 //                     }`}
 //                   >
@@ -150,46 +185,47 @@
 //     </nav>
 //   );
 // }
-
 'use client';
 
 import { FileBox, LogOut, Trash2, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FaPills, FaExchangeAlt, FaUsers, FaHome, FaTruckMoving } from 'react-icons/fa';
+import { FaPills, FaExchangeAlt, FaUsers, FaHome, FaTruckMoving, FaShieldAlt } from 'react-icons/fa';
 import { FiBox } from 'react-icons/fi';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 import { Package } from 'lucide-react';
-import { MdWarning } from 'react-icons/md';
+import { MdVerified, MdWarning } from 'react-icons/md';
 // Définition des menus par rôle
 const menuConfig = {
   admin: [
-    { href: '/medicaments', label: 'Médicaments', icon: FaPills },
-    { href: '/lots', label: 'Lots', icon: FiBox },
-    { href: '/mouvements', label: 'Mouvements', icon: FaExchangeAlt },
-    { href: '/acteurs', label: 'Acteurs', icon: FaUsers },
-    { href: '/fournir-lot', label: 'Fournir', icon: FileBox },
-    { href: '/reception', label: 'Réception', icon: FaTruckMoving },
+    { href: '/medicaments', label: 'Méd', icon: FaPills, tooltip: 'Gérer les médicaments' },
+    { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
+    { href: '/lots', label: 'Lots', icon: FiBox, tooltip: 'Gérer les lots' },
+    { href: '/mouvements', label: '', icon: FaExchangeAlt, tooltip: 'Voir les mouvements' },
+    { href: '/acteurs', label: 'Acteurs', icon: FaUsers, tooltip: 'Gérer les acteurs' },
+    { href: '/fournir-lot', label: 'Fournir', icon: FileBox, tooltip: 'Fournir un lot' },
+    { href: '/reception', label: 'Réception', icon: FaTruckMoving, tooltip: 'Réceptionner un lot' },
   ],
   fabricant: [
-    { href: '/medicaments', label: 'Médicaments', icon: FaPills },
-    { href: '/lots', label: 'Lots', icon: FiBox },
-    { href: '/mouvements', label: 'Mouvements', icon: FaExchangeAlt },
-    { href: '/fournir-lot', label: 'Fournir un lot', icon: FileBox },
-    { href: '/retirer-lot', label: 'Retirer un lot', icon: Trash2 },
+    { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
+    { href: '/medicaments', label: 'Médi', icon: FaPills, tooltip: 'Gérer les médicaments' },
+    { href: '/lots', label: 'Lots', icon: FiBox, tooltip: 'Gérer les lots' },
+    { href: '/mouvements', label: '', icon: FaExchangeAlt, tooltip: 'Voir les mouvements' },
+    { href: '/fournir-lot', label: 'Transfert', icon: FileBox, tooltip: 'Fournir un lot à un distributeur' },
+    { href: '/retirer-lot', label: 'Retirer', icon: Trash2, tooltip: 'Retirer un lot du marché' },
   ],
   distributeur: [
-    { href: '/reception', label: 'Réception', icon: FaTruckMoving },
-    { href: '/transfert-pharmacie', label: 'Transfert vers pharmacie', icon: Package },
-    { href: '/anomalies', label: 'Signaler une anomalie', icon: MdWarning },
+    { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
+    { href: '/reception', label: 'Réception', icon: FaTruckMoving, tooltip: 'Réceptionner un lot' },
+    { href: '/transfert-pharmacie', label: 'Transfert pharmacie', icon: Package, tooltip: 'Transférer un lot vers une pharmacie' },
+    { href: '/anomalies', label: 'anomalie', icon: MdWarning, tooltip: 'Signaler une anomalie sur un lot' },
   ],
   pharmacie: [
-    { href: '/medicaments', label: 'Médicaments', icon: FaPills },
-    { href: '/lots', label: 'Lots', icon: FiBox },
-    { href: '/mouvements', label: 'Mouvements', icon: FaExchangeAlt },
-    { href: '/pharmacie-one', label: 'Menu One', icon: Package },
-    { href: '/pharmacie-two', label: 'Menu Two', icon: Package },
+    { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
+    { href: '/', label: 'Mes Lots', icon: Package, tooltip: 'Voir mes lots' },
+    { href: '/verify', label: 'Verifier', icon: MdVerified, tooltip: 'Vérifier un médicament' },
+    { href: '/mouvements', label: 'Historique', icon: FaExchangeAlt, tooltip: 'Voir l\'historique des mouvements' },
   ],
 };
 
@@ -236,14 +272,15 @@ export default function Navigation() {
             </div>
             
             {/* Navigation principale basée sur le rôle */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-5">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
                 return (
                   <Link
-                    key={item.href}
+                    key={item.href + (item.label || Math.random().toString())}
                     href={item.href}
+                    title={item.tooltip || item.label}
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                       isActive
                         ? 'border-green-500 text-green-700'
@@ -264,6 +301,7 @@ export default function Navigation() {
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
+                  title={`Profil de ${user.nom_entite || user.username}`}
                   className="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center justify-center w-8 h-8 bg-green-600 rounded-full">
@@ -309,6 +347,7 @@ export default function Navigation() {
                       <div className="py-1">
                         <button
                           onClick={handleLogout}
+                          title="Se déconnecter"
                           className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                         >
                           <LogOut className="w-4 h-4 mr-2" />
@@ -322,6 +361,7 @@ export default function Navigation() {
             ) : (
               <Link
                 href="/login"
+                title="Se connecter"
                 className="inline-flex items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-md text-green-600 bg-white hover:bg-green-50 transition-colors"
               >
                 <UserIcon className="mr-2 h-4 w-4" />

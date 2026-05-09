@@ -19,7 +19,11 @@ type User = {
   password?: string
   created_at?: string
   updated_at?: string
+   ethereum_address?: string
+  ethereum_address_hash?: string
+  ganache_account_index?: number
   [key: string]: any
+ 
 }
 
 type AuthContextType = {

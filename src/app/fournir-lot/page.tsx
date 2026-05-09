@@ -289,7 +289,7 @@ export default function FournirLotPage() {
                                     : 'opacity-50 cursor-not-allowed bg-gray-50'
                                   }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex rounded-none items-center justify-between">
                           <div className="flex-1">
                             <div className="font-medium text-gray-900">
                               {lot.medicament?.nom}
@@ -427,31 +427,39 @@ export default function FournirLotPage() {
                 )}
               </div>
 
-              {/* Quantité */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantité à transférer
-                </label>
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedLot.quantite_totale}
-                    value={quantite}
-                    onChange={(e) => setQuantite(parseInt(e.target.value) || 0)}
-                    className="block w-40 px-4 py-3 border border-gray-300 lg 
-                             focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                  <span className="text-sm text-gray-500">
-                    / {selectedLot.quantite_totale} unités disponibles
-                  </span>
-                </div>
-                {quantite > selectedLot.quantite_totale && (
-                  <p className="mt-2 text-sm text-red-600">
-                    La quantité ne peut pas dépasser le stock disponible
-                  </p>
-                )}
-              </div>
+          
+
+{/* Quantité */}
+<div className="mb-6">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Quantité à transférer
+  </label>
+  <div className="flex items-center space-x-4">
+    <input
+      type="number"
+      min="1"
+      max={selectedLot.quantite_restante ?? selectedLot.quantite_totale}
+      value={quantite}
+      onChange={(e) => setQuantite(parseInt(e.target.value) || 0)}
+      className="block w-40 px-4 py-3 border border-gray-300 rounded-lg 
+               focus:ring-2 focus:ring-green-500 focus:border-green-500"
+    />
+    <div className="text-sm text-gray-500">
+      <div>Total: <span className="font-semibold">{selectedLot.quantite_totale} unités</span></div>
+      {selectedLot.quantite_transferee !== undefined && selectedLot.quantite_transferee > 0 && (
+        <div>Déjà transféré: <span className="text-yellow-600">{selectedLot.quantite_transferee} unités</span></div>
+      )}
+      <div>Disponible: <span className="font-semibold text-green-600">
+        {selectedLot.quantite_restante ?? selectedLot.quantite_totale} unités
+      </span></div>
+    </div>
+  </div>
+  {quantite > (selectedLot.quantite_restante ?? selectedLot.quantite_totale) && (
+    <p className="mt-2 text-sm text-red-600">
+      La quantité ne peut pas dépasser le stock disponible
+    </p>
+  )}
+</div>
 
               {/* Récapitulatif */}
               {selectedDestination && quantite > 0 && quantite <= selectedLot.quantite_totale && (

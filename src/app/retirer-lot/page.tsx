@@ -1,3 +1,4 @@
+
 // app/retirer-lot/page.tsx
 'use client';
 
@@ -12,7 +13,8 @@ import {
   FaCheckCircle,
   FaIndustry,
   FaWarehouse,
-  FaStore
+  FaStore,
+  FaEthereum
 } from 'react-icons/fa';
 import { FiBox } from 'react-icons/fi';
 import { getLotsDisponibles, retirerLotDefectueux } from './actions';
@@ -24,12 +26,13 @@ interface Lot {
   quantite_totale: number;
   date_expiration: string;
   fabricant_id: string;
+  blockchain_lot_id?: string;
+  transaction_hash?: string;
   medicament: {
     id: number;
     nom: string;
   };
 }
-
 
 export default function RetirerLotPage() {
   const { user } = useAuth();
@@ -42,6 +45,7 @@ export default function RetirerLotPage() {
   const [raison, setRaison] = useState('');
   const [processing, setProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [blockchainTxHash, setBlockchainTxHash] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -60,23 +64,25 @@ export default function RetirerLotPage() {
       setLoading(false);
     }
   };
-const filteredLots = useMemo(() => {
-  if (!searchTerm) return lots.filter(lot => lot.quantite_totale > 0);
-  
-  const term = searchTerm.toLowerCase();
-  return lots.filter(lot => 
-    lot.quantite_totale > 0 && (
-      lot.numero_lot.toLowerCase().includes(term) ||
-      lot.medicament?.nom.toLowerCase().includes(term)
-    )
-  );
-}, [lots, searchTerm]);
 
+  const filteredLots = useMemo(() => {
+    if (!searchTerm) return lots.filter(lot => lot.quantite_totale > 0);
+    
+    const term = searchTerm.toLowerCase();
+    return lots.filter(lot => 
+      lot.quantite_totale > 0 && (
+        lot.numero_lot.toLowerCase().includes(term) ||
+        lot.medicament?.nom.toLowerCase().includes(term)
+      )
+    );
+  }, [lots, searchTerm]);
 
   const handleOpenModal = (lot: Lot) => {
     setSelectedLot(lot);
-    setQuantite(1);
+    // ✅ Définir directement la quantité max (toute la quantité disponible)
+    setQuantite(lot.quantite_totale);
     setRaison('');
+    setBlockchainTxHash(null);
     setShowModal(true);
   };
 
@@ -95,18 +101,37 @@ const filteredLots = useMemo(() => {
 
     setProcessing(true);
     try {
-      await retirerLotDefectueux({
+      const result = await retirerLotDefectueux({
         lot_id: selectedLot.id,
         quantite,
         raison,
-        currentUser: user
+        currentUser: {
+          id: user.id,
+          matricule: user.matricule,
+          username: user.username,
+          role: user.role,
+          nom_entite: user.nom_entite,
+          ethereum_address: user.ethereum_address,
+          ganache_account_index: user.ganache_account_index,
+          first_login: user.first_login,
+          genre: user.genre,
+        }
       });
       
-      setSuccessMessage(`Lot ${selectedLot.numero_lot} retiré avec succès`);
+      // Récupérer le hash de transaction blockchain
+      if (result.blockchain_transaction_hash) {
+        setBlockchainTxHash(result.blockchain_transaction_hash);
+      }
+      
+      setSuccessMessage(`Lot ${selectedLot.numero_lot} retiré avec succès (${quantite} unités)`);
+      
+      setTimeout(() => {
+        setSuccessMessage('');
+        setBlockchainTxHash(null);
+      }, 5000);
+      
       setShowModal(false);
       setSelectedLot(null);
-      
-      setTimeout(() => setSuccessMessage(''), 3000);
       await loadLots();
     } catch (error) {
       console.error('Erreur retrait:', error);
@@ -122,6 +147,19 @@ const filteredLots = useMemo(() => {
     const dans3Mois = new Date();
     dans3Mois.setMonth(dans3Mois.getMonth() + 3);
     return expiration > new Date() && expiration < dans3Mois;
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'fabricant':
+        return <FaIndustry className="h-4 w-4" />;
+      case 'distributeur':
+        return <FaWarehouse className="h-4 w-4" />;
+      case 'pharmacie':
+        return <FaStore className="h-4 w-4" />;
+      default:
+        return null;
+    }
   };
 
   if (loading) {
@@ -148,20 +186,35 @@ const filteredLots = useMemo(() => {
       </div>
 
       {/* Info utilisateur */}
-      <div className="mb-8">
+      <div className="mb-8 flex flex-wrap items-center gap-3">
         <div className="inline-flex items-center rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700 border border-blue-200">
-          <span className="font-medium">{user?.nom_entite}</span>
+          {getRoleIcon(user?.role || '')}
+          <span className="font-medium ml-2">{user?.nom_entite}</span>
           <span className="mx-2">•</span>
           <span className="capitalize">{user?.role}</span>
         </div>
+        {user?.ethereum_address && (
+          <div className="inline-flex items-center rounded-md bg-purple-50 px-3 py-2 text-xs text-purple-700 border border-purple-200 font-mono">
+            <FaEthereum className="mr-1 h-3 w-3" />
+            {user.ethereum_address.substring(0, 10)}...{user.ethereum_address.substring(38)}
+          </div>
+        )}
       </div>
 
       {/* Message de succès */}
       {successMessage && (
         <div className="mb-6 rounded-md bg-emerald-50 border border-emerald-200 p-4">
-          <div className="flex items-center">
-            <FaCheckCircle className="h-5 w-5 text-emerald-500 mr-3" />
-            <p className="text-sm font-medium text-emerald-800">{successMessage}</p>
+          <div className="flex items-start">
+            <FaCheckCircle className="h-5 w-5 text-emerald-500 mr-3 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-emerald-800">{successMessage}</p>
+              {blockchainTxHash && (
+                <p className="mt-2 text-xs text-purple-600 font-mono bg-purple-50 p-2 rounded border border-purple-100">
+                  <FaEthereum className="inline mr-1 h-3 w-3" />
+                  Transaction: {blockchainTxHash.substring(0, 30)}...
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -205,7 +258,7 @@ const filteredLots = useMemo(() => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {filteredLots.map((lot) => (
             <div 
               key={lot.id} 
@@ -224,6 +277,12 @@ const filteredLots = useMemo(() => {
                       <p className="text-sm font-mono text-slate-500 mt-0.5">
                         Lot #{lot.numero_lot}
                       </p>
+                      {lot.blockchain_lot_id && (
+                        <p className="text-xs font-mono text-purple-500 mt-0.5">
+                          <FaEthereum className="inline mr-1 h-3 w-3" />
+                          BC: {lot.blockchain_lot_id}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
@@ -302,6 +361,12 @@ const filteredLots = useMemo(() => {
                     <p className="text-sm text-slate-500 mt-0.5">
                       Lot #{selectedLot.numero_lot} - {selectedLot.medicament?.nom}
                     </p>
+                    {selectedLot.blockchain_lot_id && (
+                      <p className="text-xs font-mono text-purple-500 mt-1">
+                        <FaEthereum className="inline mr-1 h-3 w-3" />
+                        BC: {selectedLot.blockchain_lot_id}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -334,13 +399,27 @@ const filteredLots = useMemo(() => {
                     min="1"
                     max={selectedLot.quantite_totale}
                     value={quantite}
-                    onChange={(e) => setQuantite(parseInt(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val) && val >= 1) {
+                        setQuantite(Math.min(val, selectedLot.quantite_totale));
+                      }
+                    }}
                     className="block w-full px-4 py-2.5 border border-slate-300 bg-white text-sm
                              focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500"
                   />
-                  <p className="mt-1 text-xs text-slate-500">
-                    Maximum: {selectedLot.quantite_totale} unités
-                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-xs text-slate-500">
+                      Maximum: {selectedLot.quantite_totale} unités
+                    </p>
+                    {/* Bouton pour remettre la quantité max */}
+                    <button
+                      onClick={() => setQuantite(selectedLot.quantite_totale)}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-medium"
+                    >
+                      Tout retirer ({selectedLot.quantite_totale} unités)
+                    </button>
+                  </div>
                 </div>
 
                 {/* Raison */}
@@ -365,6 +444,23 @@ const filteredLots = useMemo(() => {
                     <option value="Autre">Autre raison</option>
                   </select>
                 </div>
+
+                {/* Info blockchain */}
+                {user?.ethereum_address && selectedLot.blockchain_lot_id && (
+                  <div className="rounded-md bg-purple-50 border border-purple-200 p-3">
+                    <div className="flex items-start">
+                      <FaEthereum className="h-5 w-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <div className="ml-3">
+                        <p className="text-xs text-purple-700">
+                          Ce retrait sera enregistré sur la blockchain avec votre adresse
+                        </p>
+                        <p className="text-xs font-mono text-purple-600 mt-1">
+                          {user.ethereum_address.substring(0, 15)}...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Avertissement */}
                 <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
@@ -419,4 +515,3 @@ const filteredLots = useMemo(() => {
     </div>
   );
 }
-

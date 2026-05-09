@@ -1,4 +1,5 @@
 
+
 // app/lots/page.tsx
 'use client';
 import RouteProtector from '@/components/RouteProtector'
@@ -11,22 +12,36 @@ import {
   FaExclamationTriangle,
   FaTimesCircle,
   FaMinusCircle,
-  FaTrash, // Ajoutez cette icône
-  FaExclamationCircle // Ajoutez cette icône
+  FaExclamationCircle
 } from 'react-icons/fa';
 import { Package, Trash2 } from 'lucide-react';
 import CreateLotModal from '@/components/Modals/CreateLotModal';
 import QRCodeModal from '@/components/Modals/QRCodeModal';
-import { getLots, deleteLotWithoutMovements } from './actions'; // Importez la nouvelle fonction
+import { getLots, deleteLotWithoutMovements } from './actions';
 import type { Lot } from '@/types';
 import { FiBox } from "react-icons/fi";
 
+// Étendre le type Lot pour inclure les nouvelles propriétés
+// app/lots/page.tsx - Mise à jour du type
+interface LotWithStats extends Lot {
+  quantite_transferee?: number;
+  quantite_restante?: number;
+  quantite_retiree?: number; // Nouveau
+  nombre_retraits?: number; // Nouveau
+  statut?: 'disponible' | 'partiel' | 'epuise' | 'expire';
+  isDeletable?: boolean;
+  mouvementsDetail?: { // Nouveau
+    total: number;
+    retraits: number;
+    transferts: number;
+  };
+}
 
 export default function LotsPage() {
-  const [lots, setLots] = useState<Lot[]>([]);
+  const [lots, setLots] = useState<LotWithStats[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  const [selectedLot, setSelectedLot] = useState<Lot | null>(null);
+  const [selectedLot, setSelectedLot] = useState<LotWithStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [deletingLotId, setDeletingLotId] = useState<number | null>(null);
@@ -46,7 +61,6 @@ export default function LotsPage() {
     }
   };
 
-  // Fonction pour gérer la suppression
   const handleDeleteLot = async (lotId: number) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce lot ? Cette action est irréversible.')) {
       return;
@@ -56,7 +70,6 @@ export default function LotsPage() {
     
     try {
       await deleteLotWithoutMovements(lotId);
-      // Rafraîchir la liste
       await loadLots();
       alert('Lot supprimé avec succès');
     } catch (error) {
@@ -67,27 +80,9 @@ export default function LotsPage() {
     }
   };
 
-  const getLotStatus = (lot: Lot): 'disponible' | 'partiel' | 'epuise' | 'expire' => {
-    if (new Date(lot.date_expiration) < new Date()) {
-      return 'expire';
-    }
+  const getLotStatusConfig = (lot: LotWithStats) => {
+    const statut = lot.statut || 'disponible';
     
-    if (lot.quantite_totale === 0) {
-      return 'epuise';
-    }
-    
-    const dateCreation = new Date(lot.created_at);
-    const maintenant = new Date();
-    const differenceMinutes = (maintenant.getTime() - dateCreation.getTime()) / (1000 * 60);
-    
-    if (differenceMinutes > 5 && lot.quantite_totale > 0) {
-      return 'partiel';
-    }
-    
-    return 'disponible';
-  };
-
-  const getStatusConfig = (statut: string) => {
     const configs = {
       disponible: {
         label: 'Disponible',
@@ -114,241 +109,313 @@ export default function LotsPage() {
         iconColor: 'text-red-600'
       }
     };
-    return configs[statut as keyof typeof configs] || configs.disponible;
+    return configs[statut] || configs.disponible;
   };
 
   const filteredLots = lots.filter(lot => 
     lot.numero_lot.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lot.medicament?.nom.toLowerCase().includes(searchTerm.toLowerCase())
   );
+// app/lots/page.tsx - Ajoutez cette fonction en haut du composant
+// Juste avant le return
 
+const generateTraceabilityCodeForLot = (lot: any) => {
+  const numeroCourt = (lot.numero_lot || '')
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(-4)
+    .toUpperCase()
+    .padEnd(4, 'X');
+  
+  const codeUniqueCourt = (lot.code_unique || '')
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(-6)
+    .toUpperCase()
+    .padEnd(6, '0');
+  
+  const hashCourt = (lot.hash_lot || '')
+    .replace(/[^A-F0-9]/g, '')
+    .substring(0, 6)
+    .toUpperCase()
+    .padEnd(6, '0');
+  
+  return `TRC-${numeroCourt}-${codeUniqueCourt}-${hashCourt}`;
+};
   return (
-        <RouteProtector roles={['admin']} showUnauthorized={true}>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Lots</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Gestion des lots de médicaments avec traçabilité blockchain
-          </p>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center justify-center -md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto"
-          >
-            <FaPlus className="mr-2 h-4 w-4" />
-            Nouveau lot
-          </button>
-        </div>
-      </div>
-
-      {/* Barre de recherche */}
-      <div className="mt-4">
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <FaSearch className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Rechercher un lot par numéro ou médicament..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full -md border-gray-300 pl-10 focus:border-green-500 focus:ring-green-500 sm:text-sm"
-          />
-        </div>
-      </div>
-
-      <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {loading ? (
-          <div className="col-span-full text-center py-12">
-            <Package className="mx-auto h-12 w-12 text-gray-400 animate-pulse" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Chargement...</h3>
-          </div>
-        ) : filteredLots.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <Package className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun lot</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Commencez par créer un nouveau lot.
+    <RouteProtector roles={['fabricant','admin']} showUnauthorized={true}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h1 className="text-2xl font-semibold text-gray-900">Lots</h1>
+            <p className="mt-2 text-sm text-gray-700">
+              Gestion des lots de médicaments avec traçabilité blockchain
             </p>
           </div>
-        ) : (
-          filteredLots.map((lot) => {
-            const statusConfig = getStatusConfig(lot.statut || 'disponible');
-            const StatusIcon = statusConfig.icon;
-            
-            return (
-              <div
-                key={lot.id}
-                className="relative flex flex-col overflow-hidden -lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex h-10 w-10 items-center justify-center -full bg-green-100">
-                      <FiBox className="h-5 w-5 text-green-600" />
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center justify-center -md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto"
+            >
+              <FaPlus className="mr-2 h-4 w-4" />
+              Nouveau lot
+            </button>
+          </div>
+        </div>
+
+        {/* Barre de recherche */}
+        <div className="mt-4">
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <FaSearch className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Rechercher un lot par numéro ou médicament..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full -md border-gray-300 pl-10 focus:border-green-500 focus:ring-green-500 sm:text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="mt-8 grid  grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {loading ? (
+            <div className="col-span-full text-center py-12">
+              <Package className="mx-auto h-12 w-12 text-gray-400 animate-pulse" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Chargement...</h3>
+            </div>
+          ) : filteredLots.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Package className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun lot</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Commencez par créer un nouveau lot.
+              </p>
+            </div>
+          ) : (
+            filteredLots.map((lot) => {
+              const statusConfig = getLotStatusConfig(lot);
+              const StatusIcon = statusConfig.icon;
+              const quantiteRestante = lot.quantite_restante ?? lot.quantite_totale;
+              const isExpired = new Date(lot.date_expiration) < new Date();
+              
+              return (
+                <div
+                  key={lot.id}
+                  className="relative flex flex-col overflow-hidden -lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex h-10 w-10 items-center justify-center -full bg-green-100">
+                        <FiBox className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900">
+                          {lot.medicament?.nom}
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          {lot.medicament?.dosage} - {lot.medicament?.forme}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900">
-                        {lot.medicament?.nom}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {lot.medicament?.dosage} - {lot.medicament?.forme}
-                      </p>
+                    
+                    <div className="flex items-center space-x-2">
+                      {lot.isDeletable && (
+                        <div className="relative group">
+                          <FaExclamationCircle className="h-5 w-5 text-amber-500 hover:text-amber-600 cursor-help" />
+                          <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-48 px-2 py-1 bg-gray-900 text-white text-xs  shadow-lg">
+                            Ce lot n'a pas de mouvements (autre que création)
+                          </div>
+                        </div>
+                      )}
+                      
+                      {lot.isDeletable && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteLot(lot.id);
+                          }}
+                          disabled={deletingLotId === lot.id}
+                          className="text-red-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Supprimer le lot (sans mouvements)"
+                        >
+                          {deletingLotId === lot.id ? (
+                            <div className="h-5 w-5 animate-spin -full border-2 border-red-600 border-t-transparent" />
+                          ) : (
+                            <Trash2 className="h-5 w-5" />
+                          )}
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => {
+                          setSelectedLot(lot);
+                          setIsQRModalOpen(true);
+                        }}
+                        className="text-green-600 hover:text-green-700"
+                        title="Voir QR Code"
+                      >
+                        <FaQrcode className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">N° Lot:</span>
+                      <span className="font-mono font-medium text-gray-900">
+                        {lot.numero_lot}
+                      </span>
+                    </div>
+                    
+                    {/* AFFICHAGE DU TOTAL ET DU RESTANT */}
+                    <div className="bg-gray-50 -lg p-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Quantité totale:</span>
+                        <span className="font-semibold text-gray-900">
+                          {lot.quantite_totale} unités
+                        </span>
+                      </div>
+                       {lot.quantite_retiree !== undefined && lot.quantite_retiree > 0 && (
+    <div className="flex justify-between text-sm">
+      <span className="text-gray-500">
+        <FaExclamationTriangle className="inline mr-1 text-red-500" />
+        Retirés (défectueux):
+      </span>
+      <span className="font-medium text-red-600">
+        {lot.quantite_retiree} unités
+        {lot.nombre_retraits && lot.nombre_retraits > 1 && 
+          ` (${lot.nombre_retraits} retraits)`
+        }
+      </span>
+    </div>
+  )}
+                      {lot.quantite_transferee !== undefined && lot.quantite_transferee > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Quantité transférée:</span>
+                          <span className="font-medium text-yellow-600">
+                            {lot.quantite_transferee} unités
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between text-sm border-t border-gray-200 pt-2">
+                        <span className="text-gray-700 font-medium">Reste disponible:</span>
+                        <span className={`font-bold text-lg ${
+                          quantiteRestante > 0 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {quantiteRestante} unités
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Fabrication:</span>
+                      <span className="text-gray-900">
+                        {new Date(lot.date_fabrication).toLocaleDateString('fr-FR')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Expiration:</span>
+                      <span className={`font-medium ${
+                        isExpired ? 'text-red-600' : 'text-gray-900'
+                      }`}>
+                        {new Date(lot.date_expiration).toLocaleDateString('fr-FR')}
+                      </span>
                     </div>
                   </div>
                   
-                  {/* Actions : QR Code + Suppression */}
-                  <div className="flex items-center -none space-x-2">
-                    {/* Indicateur de statut de suppression */}
-                    {lot.isDeletable && (
-                      <div className="relative group">
-                        <FaExclamationCircle className="h-5 w-5 text-amber-500 hover:text-amber-600 cursor-help" />
-                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-48 px-2 py-1 bg-gray-900 text-white text-xs  shadow-lg">
-                          Ce lot n'a pas de mouvements (autre que création)
-                        </div>
+                  <div className="mt-2 flex justify-between text-sm">
+                    <span className="text-gray-500">Fabricant:</span>
+                    <span className="text-gray-900 font-medium">
+                      {lot.created_by}
+                    </span>
+                  </div>
+
+                  {/* Statut du lot */}
+                  <div className="mt-4">
+                    <div className={`inline-flex items-center px-3 py-1 -full text-xs font-medium border ${statusConfig.color}`}>
+                      <StatusIcon className={`mr-1.5 h-3.5 w-3.5 ${statusConfig.iconColor}`} />
+                      {statusConfig.label}
+                    </div>
+                  </div>
+
+                  {/* Barre de progression */}
+                  {lot.quantite_transferee !== undefined && lot.quantite_transferee > 0 && (
+                    <div className="mt-3">
+                      <div className="w-full bg-gray-200 -full h-2">
+                        <div 
+                          className="bg-green-600 h-2 -full transition-all duration-500"
+                          style={{ 
+                            width: `${(lot.quantite_transferee / lot.quantite_totale) * 100}%` 
+                          }}
+                        />
                       </div>
-                    )}
-                    
-                    {/* Bouton de suppression */}
-                    {lot.isDeletable && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteLot(lot.id);
-                        }}
-                        disabled={deletingLotId === lot.id}
-                        className="text-red-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title="Supprimer le lot (sans mouvements)"
-                      >
-                        {deletingLotId === lot.id ? (
-                          <div className="h-5 w-5 animate-spin -full border-2 border-red-600 border-t-transparent" />
-                        ) : (
-                          <Trash2 className="h-5 w-5" />
-                        )}
-                      </button>
-                    )}
-                    
-                    {/* Bouton QR Code */}
-                    <button
-                      onClick={() => {
-                        setSelectedLot(lot);
-                        setIsQRModalOpen(true);
-                      }}
-                      className="text-green-600 hover:text-green-700"
-                      title="Voir QR Code"
-                    >
-                      <FaQrcode className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
+                      <div className="text-xs text-gray-500 mt-1 text-right">
+                        {((lot.quantite_transferee / lot.quantite_totale) * 100).toFixed(1)}% transféré
+                      </div>
+                    </div>
+                  )}
 
-                <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">N° Lot:</span>
-                    <span className="font-mono font-medium text-gray-900">
-                      {lot.numero_lot}
-                    </span>
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <div className="text-xs font-mono text-gray-500 truncate">
+                      Hash: {lot.hash_lot?.substring(0, 32)}...
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Quantité:</span>
-                    <span className={`font-medium ${
-                      lot.quantite_totale === 0 ? 'text-gray-400' : 'text-gray-900'
+<div className="mt-2 flex items-center justify-between">
+    <span className="text-xs text-gray-500">Code traçabilité:</span>
+    <button
+      onClick={() => {
+        const code = generateTraceabilityCodeForLot(lot);
+        navigator.clipboard.writeText(code);
+        alert(`Code copié: ${code}`);
+      }}
+      className="text-xs font-mono text-blue-600 hover:text-blue-800 cursor-pointer"
+      title="Cliquer pour copier"
+    >
+      {generateTraceabilityCodeForLot(lot)}
+    </button>
+  </div>
+                  {/* Badge d'expiration */}
+                  <div className="mt-3">
+                    <span className={`inline-flex items-center -full px-2.5 py-0.5 text-xs font-medium ${
+                      isExpired 
+                        ? 'bg-red-100 text-red-800'
+                        : new Date(lot.date_expiration) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
                     }`}>
-                      {lot.quantite_totale} unités
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Fabrication:</span>
-                    <span className="text-gray-900">
-                      {new Date(lot.date_fabrication).toLocaleDateString('fr-FR')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Expiration:</span>
-                    <span className={`font-medium ${
-                      new Date(lot.date_expiration) < new Date() 
-                        ? 'text-red-600' 
-                        : 'text-gray-900'
-                    }`}>
-                      {new Date(lot.date_expiration).toLocaleDateString('fr-FR')}
+                      {isExpired 
+                        ? 'Expiré'
+                        : new Date(lot.date_expiration) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                        ? 'Expire bientôt'
+                        : 'Valide'}
                     </span>
                   </div>
                 </div>
-                
-                <div className="mt-2 flex justify-between text-sm">
-                  <span className="text-gray-500">Fabricant:</span>
-                  <span className="text-gray-900 font-medium">
-                    {lot.created_by}
-                  </span>
-                </div>
+              );
+            })
+          )}
+        </div>
 
-                {/* Statut du lot */}
-                <div className="mt-4">
-                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${statusConfig.color}`}>
-                    <StatusIcon className={`mr-1.5 h-3.5 w-3.5 ${statusConfig.iconColor}`} />
-                    {statusConfig.label}
-                  </div>
-                </div>
+        <CreateLotModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSuccess={loadLots}
+        />
 
-                {/* Information de transfert */}
-                {lot.statut === 'partiel' && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    Une partie du lot a été transférée
-                  </div>
-                )}
-                
-                {lot.statut === 'epuise' && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    Lot entièrement transféré
-                  </div>
-                )}
-
-                <div className="mt-4 border-t border-gray-200 pt-4">
-                  <div className="text-xs font-mono text-gray-500 truncate">
-                    Hash: {lot.hash_lot?.substring(0, 32)}...
-                  </div>
-                </div>
-
-                {/* Badge d'expiration */}
-                <div className="mt-3">
-                  <span className={`inline-flex items-center -full px-2.5 py-0.5 text-xs font-medium ${
-                    new Date(lot.date_expiration) < new Date() 
-                      ? 'bg-red-100 text-red-800'
-                      : new Date(lot.date_expiration) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {new Date(lot.date_expiration) < new Date() 
-                      ? 'Expiré'
-                      : new Date(lot.date_expiration) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-                      ? 'Expire bientôt'
-                      : 'Valide'}
-                  </span>
-                </div>
-              </div>
-            );
-          })
+        {selectedLot && (
+          <QRCodeModal
+            isOpen={isQRModalOpen}
+            onClose={() => {
+              setIsQRModalOpen(false);
+              setSelectedLot(null);
+            }}
+            lot={selectedLot}
+          />
         )}
       </div>
-
-      <CreateLotModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={loadLots}
-      />
-
-      {selectedLot && (
-        <QRCodeModal
-          isOpen={isQRModalOpen}
-          onClose={() => {
-            setIsQRModalOpen(false);
-            setSelectedLot(null);
-          }}
-          lot={selectedLot}
-        />
-      )}
-    </div>
     </RouteProtector>
   );
 }

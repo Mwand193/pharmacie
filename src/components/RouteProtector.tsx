@@ -302,10 +302,7 @@ export default function RouteProtector({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-10 h-10 border-2 border-gray-200 rounded-full"></div>
-            <Loader className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5 h-5 text-black animate-spin" />
-          </div>
+        
           <p className="text-sm text-gray-500 font-light">Vérification de l'accès...</p>
         </div>
       </div>
@@ -318,7 +315,6 @@ export default function RouteProtector({
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-10 h-10 border-2 border-gray-200 rounded-full"></div>
             <Loader className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5 h-5 text-black animate-spin" />
           </div>
           <p className="text-sm text-gray-500 font-light">Redirection...</p>
