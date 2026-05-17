@@ -16,12 +16,11 @@ import {
   FaArrowLeft,
   FaUser,
   FaCalendarAlt,
- 
   FaWarehouse,
-  FaSearch
+  FaSearch,
+  FaBox
 } from 'react-icons/fa';
 import Link from 'next/link';
-import { Package } from 'lucide-react';
 
 const TYPES_ANOMALIES = [
   { value: 'produit_endommage', label: 'Produit endommagé', icon: '📦' },
@@ -43,7 +42,7 @@ const GRAVITES = [
   { value: 'critique', label: 'Critique', description: 'Urgent - Bloquant', color: 'bg-purple-100 text-purple-800 border-purple-300' },
 ];
 
-const STATUTS = {
+const STATUTS: Record<string, { label: string; color: string }> = {
   signale: { label: 'Signalé', color: 'bg-yellow-100 text-yellow-800' },
   en_cours_traitement: { label: 'En cours', color: 'bg-blue-100 text-blue-800' },
   resolu: { label: 'Résolu', color: 'bg-green-100 text-green-800' },
@@ -80,14 +79,20 @@ export default function SignalerAnomaliePage() {
     
     try {
       setLoading(true);
+      console.log('🔄 Chargement des données pour l\'utilisateur:', user.id, user.role);
+      
       const [lots, anomaliesData] = await Promise.all([
         getLotsReceptionnesPourSignalement(parseInt(user.id)),
         getAnomalies(parseInt(user.id), user.role)
       ]);
-      setLotsReceptionnes(lots);
-      setAnomalies(anomaliesData);
+      
+      console.log('📦 Lots réceptionnés:', lots?.length || 0);
+      console.log('⚠️ Anomalies:', anomaliesData?.length || 0);
+      
+      setLotsReceptionnes(lots || []);
+      setAnomalies(anomaliesData || []);
     } catch (error) {
-      console.error('Erreur chargement:', error);
+      console.error('❌ Erreur chargement:', error);
     } finally {
       setLoading(false);
     }
@@ -176,7 +181,7 @@ export default function SignalerAnomaliePage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center py-12">
-          <FaExclamationTriangle className="mx-auto  h-12 w-12 text-yellow-400" />
+          <FaExclamationTriangle className="mx-auto h-12 w-12 text-yellow-400" />
           <h3 className="mt-2 text-lg font-medium text-gray-900">Non authentifié</h3>
           <p className="mt-1 text-sm text-gray-500">
             Veuillez vous connecter pour signaler une anomalie.
@@ -208,7 +213,7 @@ export default function SignalerAnomaliePage() {
             </p>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm text-gray-500 bg-blue-50 px-3 py-2 -md">
+          <div className="flex items-center space-x-2 text-sm text-gray-500 bg-blue-50 px-3 py-2 rounded-md">
             <FaWarehouse className="h-4 w-4 text-blue-600" />
             <span className="font-medium">{user.nom_entite || user.username}</span>
             <span className="text-gray-300">|</span>
@@ -226,7 +231,7 @@ export default function SignalerAnomaliePage() {
             { key: 'succes', label: 'Signalement enregistré' }
           ].map((step, index) => (
             <div key={step.key} className="flex items-center">
-              <div className={`flex items-center justify-center w-10 h-10 -full text-sm font-medium ${
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${
                 etape === step.key ? 'bg-blue-600 text-white' :
                 etape === 'succes' && index <= 2 ? 'bg-green-600 text-white' :
                 'bg-gray-200 text-gray-600'
@@ -248,11 +253,11 @@ export default function SignalerAnomaliePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Colonne principale */}
         <div className="lg:col-span-2">
-          <div className="bg-white -lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             {loading ? (
               <div className="text-center py-12">
-                <Package className="mx-auto h-12 w-12 text-gray-400 animate-pulse" />
-                <p className="mt-2 text-gray-500">Chargement...</p>
+                <FaBox className="mx-auto h-12 w-12 text-gray-400 animate-pulse" />
+                <p className="mt-2 text-gray-500">Chargement des lots réceptionnés...</p>
               </div>
             ) : (
               <>
@@ -264,23 +269,24 @@ export default function SignalerAnomaliePage() {
                       Sélectionnez un lot réceptionné
                     </h2>
                     
-                    <div className="mb-4 p-3 bg-blue-50 -md text-sm text-blue-700">
+                    <div className="mb-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
                       <FaExclamationTriangle className="inline mr-2 h-4 w-4" />
                       Vous ne pouvez signaler une anomalie que sur les lots que vous avez réceptionnés.
                     </div>
                     
                     {lotsReceptionnes.length === 0 ? (
-                      <div className="text-center py-8 bg-gray-50 -lg">
-                        <FaWarehouse className="mx-auto h-12 w-12 text-gray-400" />
-                        <p className="mt-2 text-gray-500">Aucun lot réceptionné disponible</p>
-                        <p className="text-sm text-gray-400">
-                          Réceptionnez d'abord des lots depuis la page Réception
+                      <div className="text-center py-8 bg-gray-50 rounded-lg">
+                        <FaBox className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-2 text-gray-500 font-medium">Aucun lot réceptionné disponible</p>
+                        <p className="text-sm text-gray-400 mt-1">
+                          Vous devez d'abord valider la réception de lots depuis la page Réception
                         </p>
                         <Link
                           href="/reception"
-                          className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                          className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
                         >
-                          Aller aux réceptions →
+                          <FaArrowLeft className="mr-1 h-3 w-3" />
+                          Aller aux réceptions
                         </Link>
                       </div>
                     ) : (
@@ -290,23 +296,23 @@ export default function SignalerAnomaliePage() {
                             key={reception.id}
                             onClick={() => handleSelectionLot(reception)}
                             disabled={reception.a_anomalie_en_cours}
-                            className={`text-left p-4 border -lg transition-all ${
+                            className={`text-left p-4 border rounded-lg transition-all ${
                               reception.a_anomalie_en_cours
                                 ? 'border-orange-200 bg-orange-50 opacity-75 cursor-not-allowed'
-                                : 'border-gray-200 hover:border-blue-500 hover:shadow-md'
+                                : 'border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer'
                             }`}
                           >
                             <div className="flex items-start justify-between">
                               <div>
                                 <h3 className="font-medium text-gray-900">
-                                  {reception.lot?.medicament?.nom}
+                                  {reception.lot?.medicament?.nom || 'Médicament inconnu'}
                                 </h3>
                                 <p className="text-sm text-gray-500">
-                                  Lot: {reception.lot?.numero_lot}
+                                  Lot: {reception.lot?.numero_lot || 'N/A'}
                                 </p>
                               </div>
                               {reception.a_anomalie_en_cours && (
-                                <span className="inline-flex items-center -full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-700">
+                                <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-700">
                                   Anomalie en cours
                                 </span>
                               )}
@@ -360,14 +366,14 @@ export default function SignalerAnomaliePage() {
                     </div>
 
                     {/* Résumé du lot */}
-                    <div className="mb-6 p-4 bg-gray-50 -lg">
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                       <h3 className="font-medium text-gray-900">
-                        {lotSelectionne.lot?.medicament?.nom}
+                        {lotSelectionne.lot?.medicament?.nom || 'Médicament'}
                       </h3>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-gray-500">Lot:</span>{' '}
-                          <span className="font-medium">{lotSelectionne.lot?.numero_lot}</span>
+                          <span className="font-medium">{lotSelectionne.lot?.numero_lot || 'N/A'}</span>
                         </div>
                         <div>
                           <span className="text-gray-500">Quantité:</span>{' '}
@@ -379,13 +385,13 @@ export default function SignalerAnomaliePage() {
                         </div>
                         <div>
                           <span className="text-gray-500">Code CIS:</span>{' '}
-                          <span className="font-mono text-xs">{lotSelectionne.lot?.medicament?.code_cis}</span>
+                          <span className="font-mono text-xs">{lotSelectionne.lot?.medicament?.code_cis || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
 
                     {error && (
-                      <div className="mb-4 -md bg-red-50 p-4">
+                      <div className="mb-4 rounded-md bg-red-50 p-4">
                         <div className="flex">
                           <FaTimesCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
                           <p className="ml-3 text-sm text-red-700">{error}</p>
@@ -402,7 +408,7 @@ export default function SignalerAnomaliePage() {
                         <select
                           value={formData.type_anomalie}
                           onChange={(e) => setFormData({ ...formData, type_anomalie: e.target.value })}
-                          className="block w-full -md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 border"
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 border"
                           required
                         >
                           <option value="">Sélectionnez un type</option>
@@ -425,7 +431,7 @@ export default function SignalerAnomaliePage() {
                               key={g.value}
                               type="button"
                               onClick={() => setFormData({ ...formData, gravite: g.value })}
-                              className={`p-3 -lg border-2 text-left transition-all ${
+                              className={`p-3 rounded-lg border-2 text-left transition-all ${
                                 formData.gravite === g.value
                                   ? `${g.color} border-current`
                                   : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
@@ -447,7 +453,7 @@ export default function SignalerAnomaliePage() {
                           rows={5}
                           value={formData.description}
                           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          className="block w-full -md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 border resize-vertical"
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 border resize-vertical"
                           placeholder="Décrivez précisément l'anomalie constatée..."
                           required
                         />
@@ -458,7 +464,7 @@ export default function SignalerAnomaliePage() {
                         <button
                           type="submit"
                           disabled={processing}
-                          className="flex-1 inline-flex justify-center items-center -md bg-yellow-600 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 disabled:opacity-50"
+                          className="flex-1 inline-flex justify-center items-center rounded-md bg-yellow-600 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 disabled:opacity-50"
                         >
                           {processing ? (
                             'Signalement en cours...'
@@ -472,7 +478,7 @@ export default function SignalerAnomaliePage() {
                         <button
                           type="button"
                           onClick={reinitialiser}
-                          className="inline-flex justify-center items-center -md border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                          className="inline-flex justify-center items-center rounded-md border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
                         >
                           Annuler
                         </button>
@@ -497,13 +503,13 @@ export default function SignalerAnomaliePage() {
                     <div className="mt-6 space-x-3">
                       <button
                         onClick={reinitialiser}
-                        className="inline-flex items-center -md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                        className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                       >
                         Signaler une autre anomalie
                       </button>
                       <Link
                         href="/reception"
-                        className="inline-flex items-center -md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                       >
                         Retour aux réceptions
                       </Link>
@@ -522,7 +528,7 @@ export default function SignalerAnomaliePage() {
             Mes signalements
           </h2>
 
-          <div className="bg-white -lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             {anomalies.length === 0 ? (
               <div className="text-center py-8 px-4">
                 <FaHistory className="mx-auto h-8 w-8 text-gray-300" />
@@ -533,10 +539,10 @@ export default function SignalerAnomaliePage() {
                 {anomalies.map((anomalie) => (
                   <div key={anomalie.id} className="p-4 hover:bg-gray-50">
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className={`inline-flex items-center -full px-2 py-0.5 text-xs font-medium ${
-                        STATUTS[anomalie.statut as keyof typeof STATUTS]?.color || 'bg-gray-100 text-gray-800'
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        STATUTS[anomalie.statut]?.color || 'bg-gray-100 text-gray-800'
                       }`}>
-                        {STATUTS[anomalie.statut as keyof typeof STATUTS]?.label}
+                        {STATUTS[anomalie.statut]?.label || anomalie.statut}
                       </span>
                       <span className="text-xs text-gray-400">
                         {formatDate(anomalie.created_at)}
@@ -560,7 +566,7 @@ export default function SignalerAnomaliePage() {
                     </p>
 
                     {anomalie.commentaire_resolution && (
-                      <div className="mt-2 p-2 bg-gray-50  text-xs text-gray-600">
+                      <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
                         {anomalie.commentaire_resolution}
                       </div>
                     )}

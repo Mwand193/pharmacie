@@ -15,32 +15,34 @@ import DeployContractButton from '@/components/DeployContractButton';
 // Définition des menus par rôle
 const menuConfig = {
   admin: [
-    { href: '/medicaments', label: '', icon: FaPills, tooltip: 'Gérer les médicaments' },
-    { href: '/verify', label: 'Authenticite', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
-    { href: '/lots', label: 'Lots', icon: FiBox, tooltip: 'Gérer les lots' },
+    { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
+    //{ href: '/medicaments', label: '', icon: FaPills, tooltip: 'Gérer les médicaments' },
+    //{ href: '/lots', label: 'Lots', icon: FiBox, tooltip: 'Gérer les lots' },
     { href: '/mouvements', label: 'Historique', icon: FaExchangeAlt, tooltip: 'Voir les mouvements' },
     { href: '/acteurs', label: 'Acteurs', icon: FaUsers, tooltip: 'Gérer les acteurs' },
-    { href: '/fournir-lot', label: 'Fournir', icon: FileBox, tooltip: 'Fournir un lot' },
-    { href: '/reception', label: 'Réception', icon: FaTruckMoving, tooltip: 'Réceptionner un lot' },
+   // { href: '/fournir-lot', label: 'Fournir', icon: FileBox, tooltip: 'Fournir un lot' },
+   // { href: '/reception', label: 'Réception', icon: FaTruckMoving, tooltip: 'Réceptionner un lot' },
   ],
   fabricant: [
     { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
-    { href: '/medicaments', label: 'Médi', icon: FaPills, tooltip: 'Gérer les médicaments' },
+    { href: '/medicaments', label: 'Médicaments', icon: FaPills, tooltip: 'Gérer les médicaments' },
     { href: '/lots', label: 'Lots', icon: FiBox, tooltip: 'Gérer les lots' },
-    { href: '/mouvements', label: '', icon: FaExchangeAlt, tooltip: 'Voir les mouvements' },
+    { href: '/mouvements', label: 'Historique', icon: FaExchangeAlt, tooltip: 'Voir les mouvements' },
     { href: '/fournir-lot', label: 'Transfert', icon: FileBox, tooltip: 'Fournir un lot à un distributeur' },
     { href: '/retirer-lot', label: 'Retirer', icon: Trash2, tooltip: 'Retirer un lot du marché' },
   ],
   distributeur: [
     { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
+        { href: '/distributeur', label: 'Mes Lots', icon: FiBox, tooltip: 'Gérer les lots' },
+
     { href: '/reception', label: 'Réception', icon: FaTruckMoving, tooltip: 'Réceptionner un lot' },
     { href: '/transfert-pharmacie', label: 'Transfert pharmacie', icon: Package, tooltip: 'Transférer un lot vers une pharmacie' },
     { href: '/anomalies', label: 'anomalie', icon: MdWarning, tooltip: 'Signaler une anomalie sur un lot' },
   ],
   pharmacie: [
     { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
-    { href: '/', label: 'Mes Lots', icon: Package, tooltip: 'Voir mes lots' },
-    { href: '/verify', label: 'Verifier', icon: MdVerified, tooltip: 'Vérifier un médicament' },
+
+    { href: '/pharmacie', label: 'Mes Lots', icon: Package, tooltip: 'Voir mes lots' },
     { href: '/mouvements', label: 'Historique', icon: FaExchangeAlt, tooltip: 'Voir l\'historique des mouvements' },
   ],
 };
@@ -111,7 +113,7 @@ export default function Navigation() {
               })}
             </div>
           </div>
-          {isAuthenticated && <DeployContractButton />}
+          {isAuthenticated && user?.role === 'admin' && <DeployContractButton />}
              {/* <DeployContractButton /> */}
 
           {/* Partie droite : Utilisateur ou Connexion */}

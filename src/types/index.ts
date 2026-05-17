@@ -23,36 +23,6 @@ export interface Distributeur {
   updated_at: string;
 }
 
-// export interface Lot {
-//   id: number;
-//   medicament_id: number;
-//   numero_lot: string;
-//   created_by: string;
-//   fabricant_id: number;
-//   code_unique: string;
-//   hash_lot: string;
-//   qr_content: string | null;
-//   date_fabrication: string;
-//   date_expiration: string;
-//   quantite_totale: number;
-//   quantite_transferee: number;
-//   quantite_restante: number;
-//   created_at: string;
-//   updated_at: string;
-  
-//   // Relations
-//   medicament?: Medicament;
-  
-//   // Statut
-//   statut?: 'disponible' | 'partiel' | 'epuise' | 'expire';
-//   hasMovements?: boolean;
-//   isDeletable?: boolean;
-  
-//   // ✅ Blockchain
-//   blockchain_lot_id?: string | null;
-//   transaction_hash?: string | null;
-// }
-
 export interface Lot {
   id: number;
   medicament_id: number;
@@ -199,4 +169,88 @@ export interface BlockchainMouvementData {
   type_mouvement: string;
   quantite: number;
   commentaire: string;
+}
+
+
+// types/index.ts - Ajoutez ces types
+
+// Type étendu pour les lots du distributeur (NE PAS étendre Lot pour éviter les conflits)
+export interface DistributeurLot {
+  // Infos de base du lot
+  id: number;
+  medicament_id: number;
+  numero_lot: string;
+  code_unique: string;
+  hash_lot: string;
+  qr_content: string | null;
+  date_fabrication: string;
+  date_expiration: string;
+  quantite_totale: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  fabricant_id: number;
+  blockchain_lot_id?: string | null;
+  transaction_hash?: string | null;
+  
+  // Relation médicament
+  medicament?: Medicament;
+  
+  // Infos de réception
+  date_reception?: string;
+  quantite_recue?: number;
+  type_unite_recue?: string;
+  fabriquant_nom?: string;
+  fabriquant_id?: string;
+  
+  // Statistiques d'utilisation
+  quantite_distribuee?: number;
+  quantite_retiree?: number;
+  quantite_restante?: number;
+  quantite_transferee?: number;
+  
+  // Statut personnalisé pour le distributeur (inclut 'en_attente')
+  statut_distributeur?: 'disponible' | 'partiel' | 'epuise' | 'expire' | 'en_attente';
+  
+  // Mouvements détaillés
+  mouvementsDetail?: {
+    total: number;
+    distributions: number;
+    retraits: number;
+    transferts: number;
+    receptions: number;
+  };
+  
+  // Dernière activité
+  derniere_activite?: {
+    type: string;
+    date: string;
+    quantite: number;
+  } | null;
+  
+  // Statut de réception
+  statut_reception?: 'receptionne' | 'en_attente' | 'rejete';
+}
+
+// Type pour les transferts en attente
+export interface TransfertEnAttente {
+  id: number;
+  lot_id: number;
+  quantite: number;
+  type_unite: string;
+  created_at: string;
+  statut: 'en_attente' | 'receptionne' | 'rejete';
+  lot: Lot;
+  source: {
+    id: string;
+    nom_entite: string;
+    username: string;
+    role: string;
+  };
+  destination: {
+    id: string;
+    nom_entite: string;
+    username: string;
+    role: string;
+  };
 }

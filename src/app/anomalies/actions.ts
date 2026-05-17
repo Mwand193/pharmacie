@@ -1,4 +1,3 @@
-
 // app/anomalies/actions.ts
 'use server';
 
@@ -32,9 +31,10 @@ async function verifierLotReceptionne(
   lotId: number,
   distributeurId: number
 ) {
+  // Vérifier que le lot existe
   const { data: lot, error: lotError } = await supabase
     .from('lots')
-    .select('id, numero_lot')
+    .select('id, numero_lot, medicament_id')
     .eq('id', lotId)
     .single();
 
@@ -42,12 +42,15 @@ async function verifierLotReceptionne(
     throw new Error('Lot non trouvé');
   }
 
+  // Vérifier qu'il y a un transfert vers ce distributeur
   const { data: transfert, error: transfertError } = await supabase
     .from('mouvements')
     .select('id, type_mouvement, destination_id, statut_apres, lot_id')
     .eq('lot_id', lotId)
     .eq('type_mouvement', 'transfert')
     .eq('destination_id', distributeurId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .single();
 
   if (transfertError || !transfert) {
@@ -57,13 +60,16 @@ async function verifierLotReceptionne(
     );
   }
 
+  // Vérifier qu'il y a une réception validée
   const { data: reception, error: receptionError } = await supabase
     .from('mouvements')
-    .select('id, statut_apres')
+    .select('id, statut_apres, type_mouvement, source_id, destination_id')
     .eq('lot_id', lotId)
     .eq('type_mouvement', 'reception')
     .eq('source_id', distributeurId)
     .eq('statut_apres', 'receptionne')
+    .order('created_at', { ascending: false })
+    .limit(1)
     .single();
 
   if (receptionError || !reception) {
@@ -104,18 +110,17 @@ export async function signalerAnomalie(data: AnomalieInput) {
     .select('id, statut')
     .eq('lot_id', data.lot_id)
     .eq('signale_par', data.signale_par)
-    .neq('statut', 'resolu')
-    .neq('statut', 'rejete')
-    .single();
+    .not('statut', 'in', '("resolu","rejete")')
+    .maybeSingle();
 
   if (existingAnomalie) {
     throw new Error(
-      `Vous avez déjà signalé une anomalie sur ce lot (${existingAnomalie.statut}). ` +
+      `Vous avez déjà signalé une anomalie sur ce lot (statut: ${existingAnomalie.statut}). ` +
       'Attendez qu\'elle soit traitée avant d\'en signaler une nouvelle.'
     );
   }
 
-  // Créer l'anomalie dans PostgreSQL (anomalies = table séparée, pas dans mouvements)
+  // Créer l'anomalie dans PostgreSQL
   const { data: anomalie, error } = await supabase
     .from('anomalies')
     .insert([{
@@ -175,47 +180,7 @@ export async function signalerAnomalie(data: AnomalieInput) {
   };
 }
 
-// Récupérer les lots réceptionnés pour le signalement
-export async function getLotsReceptionnesPourSignalement(distributeurId: number) {
-  const supabase = await createClient();
-  
-  const { data: receptions, error } = await supabase
-    .from('mouvements')
-    .select(`
-      id, lot_id, quantite, created_at, statut_apres, commentaire, source_id, destination_id
-    `)
-    .eq('type_mouvement', 'reception')
-    .eq('source_id', distributeurId)
-    .eq('statut_apres', 'receptionne')
-    .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Erreur chargement réceptions:', error);
-    throw error;
-  }
-
-  const lotsAvecAnomalies = await Promise.all(
-    (receptions || []).map(async (reception: any) => {
-      const [lot, source, destination, anomalies] = await Promise.all([
-        supabase.from('lots').select(`id, numero_lot, date_fabrication, date_expiration, medicament:medicament_id (id, nom, code_cis, dosage, forme)`).eq('id', reception.lot_id).single(),
-        supabase.from('users').select('id, nom_entite, username, role').eq('id', reception.source_id).single(),
-        supabase.from('users').select('id, nom_entite, username, role').eq('id', reception.destination_id).single(),
-        supabase.from('anomalies').select('id, statut, type_anomalie, created_at').eq('lot_id', reception.lot_id).eq('signale_par', distributeurId).neq('statut', 'resolu').neq('statut', 'rejete').order('created_at', { ascending: false })
-      ]);
-
-      return {
-        ...reception,
-        lot: lot.data,
-        source: source.data,
-        destination: destination.data,
-        anomalies_actives: anomalies.data || [],
-        a_anomalie_en_cours: anomalies.data && anomalies.data.length > 0
-      };
-    })
-  );
-
-  return lotsAvecAnomalies;
-}
 
 // Récupérer les anomalies
 export async function getAnomalies(userId: number, role: string) {
@@ -245,7 +210,11 @@ export async function getAnomalies(userId: number, role: string) {
       const [signaleur, traiteur, lot] = await Promise.all([
         getUserInfo(supabase, anomalie.signale_par),
         anomalie.traite_par ? getUserInfo(supabase, anomalie.traite_par) : null,
-        supabase.from('lots').select(`id, numero_lot, date_expiration, medicament:medicament_id (id, nom, code_cis, dosage)`).eq('id', anomalie.lot_id).single()
+        supabase
+          .from('lots')
+          .select('id, numero_lot, date_expiration, medicament:medicament_id (id, nom, code_cis, dosage)')
+          .eq('id', anomalie.lot_id)
+          .single()
       ]);
 
       return { ...anomalie, signaleur, traiteur, lot: lot.data || null };
@@ -272,10 +241,18 @@ export async function getAnomalie(anomalieId: number) {
     getUserInfo(supabase, anomalie.signale_par),
     anomalie.traite_par ? getUserInfo(supabase, anomalie.traite_par) : null,
     supabase.from('lots').select(`*, medicament:medicament_id (*)`).eq('id', anomalie.lot_id).single(),
-    anomalie.mouvement_id ? supabase.from('mouvements').select(`*, source:source_id (id, nom_entite, username), destination:destination_id (id, nom_entite, username)`).eq('id', anomalie.mouvement_id).single() : null
+    anomalie.mouvement_id 
+      ? supabase.from('mouvements').select(`*, source:source_id (id, nom_entite, username), destination:destination_id (id, nom_entite, username)`).eq('id', anomalie.mouvement_id).single() 
+      : null
   ]);
 
-  return { ...anomalie, signaleur, traiteur, lot: lot.data || null, mouvement: mouvement?.data || null };
+  return { 
+    ...anomalie, 
+    signaleur, 
+    traiteur, 
+    lot: lot.data || null, 
+    mouvement: mouvement?.data || null 
+  };
 }
 
 // Traiter une anomalie (admin)
@@ -342,8 +319,164 @@ export async function getStatistiquesAnomalies() {
 
   return {
     total: stats?.length || 0,
-    par_statut: stats?.reduce((acc: any, curr: any) => { acc[curr.statut] = (acc[curr.statut] || 0) + 1; return acc; }, {}),
-    par_gravite: stats?.reduce((acc: any, curr: any) => { acc[curr.gravite] = (acc[curr.gravite] || 0) + 1; return acc; }, {}),
-    par_type: stats?.reduce((acc: any, curr: any) => { acc[curr.type_anomalie] = (acc[curr.type_anomalie] || 0) + 1; return acc; }, {}),
+    par_statut: stats?.reduce((acc: any, curr: any) => { 
+      acc[curr.statut] = (acc[curr.statut] || 0) + 1; 
+      return acc; 
+    }, {}),
+    par_gravite: stats?.reduce((acc: any, curr: any) => { 
+      acc[curr.gravite] = (acc[curr.gravite] || 0) + 1; 
+      return acc; 
+    }, {}),
+    par_type: stats?.reduce((acc: any, curr: any) => { 
+      acc[curr.type_anomalie] = (acc[curr.type_anomalie] || 0) + 1; 
+      return acc; 
+    }, {}),
   };
 }
+
+
+
+
+// Récupérer les lots réceptionnés pour le signalement - VERSION CORRIGÉE
+export async function getLotsReceptionnesPourSignalement(distributeurId: number) {
+  const supabase = await createClient();
+  
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 RECHERCHE DES RÉCEPTIONS');
+  console.log('Distributeur ID:', distributeurId);
+  console.log('Type:', typeof distributeurId);
+  console.log('═══════════════════════════════════════');
+  
+  // Étape 1: Vérifier que l'utilisateur existe
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, role, nom_entite, username')
+    .eq('id', distributeurId)
+    .single();
+  
+  console.log('👤 Utilisateur:', user);
+  
+  if (!user) {
+    console.error('❌ Utilisateur non trouvé');
+    return [];
+  }
+  
+  if (user.role !== 'distributeur' && user.role !== 'admin') {
+    console.error('❌ L\'utilisateur n\'est pas un distributeur');
+    return [];
+  }
+  
+  // Étape 2: Récupérer TOUS les mouvements de type 'reception' pour cet utilisateur
+  console.log('📋 Recherche des mouvements de réception...');
+  
+  const { data: allMouvements, error: allMouvementsError } = await supabase
+    .from('mouvements')
+    .select('*')
+    .eq('source_id', distributeurId)
+    .order('created_at', { ascending: false });
+  
+  console.log(`📊 Total mouvements (source_id=${distributeurId}):`, allMouvements?.length || 0);
+  
+  if (allMouvements) {
+    console.log('Types de mouvements trouvés:', 
+      [...new Set(allMouvements.map(m => m.type_mouvement))]
+    );
+    console.log('Statuts trouvés:', 
+      [...new Set(allMouvements.map(m => m.statut_apres))]
+    );
+  }
+  
+  // Étape 3: Filtrer uniquement les réceptions validées
+  const receptions = allMouvements?.filter(m => 
+    m.type_mouvement === 'reception' && 
+    m.statut_apres === 'receptionne'
+  ) || [];
+  
+  console.log(`✅ Réceptions validées trouvées: ${receptions.length}`);
+  
+  if (receptions.length > 0) {
+    console.log('Première réception:', {
+      id: receptions[0].id,
+      lot_id: receptions[0].lot_id,
+      quantite: receptions[0].quantite,
+      created_at: receptions[0].created_at,
+      commentaire: receptions[0].commentaire
+    });
+  }
+  
+  // Étape 4: Enrichir avec les informations des lots
+  const lotsAvecAnomalies = await Promise.all(
+    receptions.map(async (reception: any) => {
+      console.log(`\n📦 Traitement réception #${reception.id}, lot_id: ${reception.lot_id}`);
+      
+      // Récupérer les infos du lot
+      const { data: lot, error: lotError } = await supabase
+        .from('lots')
+        .select(`
+          id,
+          numero_lot,
+          date_fabrication,
+          date_expiration,
+          medicament:medicament_id (
+            id,
+            nom,
+            code_cis,
+            dosage,
+            forme
+          )
+        `)
+        .eq('id', reception.lot_id)
+        .single();
+      
+      if (lotError) {
+        console.error(`❌ Erreur lot #${reception.lot_id}:`, lotError.message);
+      } else {
+        console.log(`✅ Lot trouvé: ${lot?.numero_lot} `);
+      }
+      
+      // Récupérer les infos de la source (le distributeur lui-même)
+      const { data: source } = await supabase
+        .from('users')
+        .select('id, nom_entite, username, role')
+        .eq('id', reception.source_id)
+        .single();
+      
+      // Récupérer les infos de la destination
+      const { data: destination } = await supabase
+        .from('users')
+        .select('id, nom_entite, username, role')
+        .eq('id', reception.destination_id)
+        .single();
+      
+      // Vérifier les anomalies existantes
+      const { data: anomalies, error: anomaliesError } = await supabase
+        .from('anomalies')
+        .select('id, statut, type_anomalie, created_at')
+        .eq('lot_id', reception.lot_id)
+        .eq('signale_par', distributeurId)
+        .not('statut', 'in', '("resolu","rejete")')
+        .order('created_at', { ascending: false });
+      
+      if (anomaliesError) {
+        console.error(`❌ Erreur anomalies lot #${reception.lot_id}:`, anomaliesError.message);
+      }
+      
+      return {
+        ...reception,
+        lot: lot || null,
+        source: source || null,
+        destination: destination || null,
+        anomalies_actives: anomalies || [],
+        a_anomalie_en_cours: anomalies && anomalies.length > 0
+      };
+    })
+  );
+  
+  console.log('\n═══════════════════════════════════════');
+  console.log(`📊 RÉSULTAT FINAL: ${lotsAvecAnomalies.length} lots réceptionnés`);
+  console.log('═══════════════════════════════════════\n');
+  
+  return lotsAvecAnomalies;
+}
+
+// ... (garder le reste des fonctions inchangées) ...
