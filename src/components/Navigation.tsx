@@ -34,6 +34,7 @@ const menuConfig = {
   distributeur: [
     { href: '/verify', label: '', icon: FaShieldAlt, tooltip: 'Vérifier un médicament' },
         { href: '/distributeur', label: 'Mes Lots', icon: FiBox, tooltip: 'Gérer les lots' },
+    { href: '/mouvements', label: 'Historique', icon: FaExchangeAlt, tooltip: 'Voir les mouvements' },
 
     { href: '/reception', label: 'Réception', icon: FaTruckMoving, tooltip: 'Réceptionner un lot' },
     { href: '/transfert-pharmacie', label: 'Transfert pharmacie', icon: Package, tooltip: 'Transférer un lot vers une pharmacie' },
